@@ -1,23 +1,48 @@
 import 'package:flutter/material.dart';
-import '../features/invoice/presentation/invoice_home_screen.dart';
+import 'app_colors.dart';
+import 'app_router.dart';
 
 class QuickInvoiceApp extends StatelessWidget {
   const QuickInvoiceApp({super.key});
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Quick Invoice Maker',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3659E3)),
-      scaffoldBackgroundColor: const Color(0xFFF7F8FC),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'EasyBill Invoice Maker',
+      debugShowCheckedModeBanner: false,
+      routerConfig: appRouter,
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: AppColors.lightColorScheme,
+        scaffoldBackgroundColor: AppColors.grey12,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.white1,
+          foregroundColor: AppColors.black2,
+          elevation: 0,
+        ),
+        cardTheme: const CardThemeData(
+          color: AppColors.white1,
+          surfaceTintColor: Colors.transparent,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: AppColors.white1,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.grey14),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.grey14),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.blue2, width: 1.5),
+          ),
+        ),
       ),
-    ),
-    home: const InvoiceHomeScreen(),
-  );
+    );
+  }
 }
