@@ -1,0 +1,1 @@
+// Starter placeholder. Regenerate native platform files using `flutter create --platforms=android,ios .` and verify with Xcode before App Store release.
