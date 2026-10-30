@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../application/invoice_form_controller.dart';
 import '../application/invoice_pdf_service.dart';
 import '../domain/invoice_draft.dart';
@@ -36,9 +37,7 @@ class _InvoiceHomeScreenState extends ConsumerState<InvoiceHomeScreen> {
     if (!_formKey.currentState!.validate()) return;
     final state = ref.read(invoiceFormProvider);
     if (state.lines.any((e) => e.description.trim().isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a description for every item.')),
-      );
+      AppSnackbar.showError('Enter a description for every item.');
       return;
     }
     setState(() => _busy = true);
@@ -55,9 +54,7 @@ class _InvoiceHomeScreenState extends ConsumerState<InvoiceHomeScreen> {
       ));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('PDF creation failed: $e')),
-      );
+        AppSnackbar.showError('PDF creation failed: $e');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -183,7 +180,7 @@ class _InvoiceHomeScreenState extends ConsumerState<InvoiceHomeScreen> {
       const SizedBox(height: 10),
       Row(children: [
         Expanded(child: TextFormField(
-          key: ValueKey('qty-$index-${line.quantity}'),
+          key: ValueKey('qty-$index'),
           initialValue: line.quantity.toString(),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(labelText: 'Quantity'),
@@ -191,7 +188,7 @@ class _InvoiceHomeScreenState extends ConsumerState<InvoiceHomeScreen> {
         )),
         const SizedBox(width: 10),
         Expanded(child: TextFormField(
-          key: ValueKey('price-$index-${line.unitPrice}'),
+          key: ValueKey('price-$index'),
           initialValue: line.unitPrice.toStringAsFixed(2),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: const InputDecoration(labelText: 'Unit price (₹)'),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
+import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../../application/invoice_form_controller.dart';
 import '../../application/number_to_words.dart';
 import '../../domain/invoice_line.dart';
@@ -78,21 +79,14 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: AppColors.red1,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    AppSnackbar.showError(msg);
   }
 
   void _showAddItemDialog() {
     final descCtrl = TextEditingController();
     final qtyCtrl = TextEditingController(text: '1');
-    final priceCtrl = TextEditingController(text: '0');
-    final discCtrl = TextEditingController(text: '0');
+    final priceCtrl = TextEditingController();
+    final discCtrl = TextEditingController();
     final hsnCtrl = TextEditingController();
     String unit = 'Pcs';
     double taxRate = 18.0;
@@ -132,7 +126,7 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                   labelText: 'Item Name / Description *',
-                  hintText: 'e.g. Office Chair Ergonomic',
+                  hintText: 'Enter product or service name',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
@@ -146,7 +140,7 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                       controller: hsnCtrl,
                       decoration: InputDecoration(
                         labelText: 'HSN / SAC Code',
-                        hintText: 'e.g. 9403',
+                        hintText: 'Enter HSN or SAC code',
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -191,6 +185,7 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                           const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
                         labelText: 'Quantity',
+                        hintText: 'Enter quantity',
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -204,6 +199,7 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                           const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
                         labelText: 'Unit Price (₹)',
+                        hintText: 'Enter unit price',
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -217,6 +213,7 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                           const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
                         labelText: 'Discount (₹)',
+                        hintText: 'Enter discount',
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
@@ -295,6 +292,21 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<InvoiceFormState>(invoiceFormProvider, (previous, next) {
+      if (previous != null &&
+          previous.invoiceNumber != next.invoiceNumber &&
+          next.notes.isEmpty &&
+          _notes.text.isNotEmpty) {
+        _notes.text = '';
+      }
+      if (previous != null &&
+          previous.invoiceNumber != next.invoiceNumber &&
+          next.terms.isEmpty &&
+          _terms.text.isNotEmpty) {
+        _terms.text = '';
+      }
+    });
+
     final state = ref.watch(invoiceFormProvider);
     final money =
         NumberFormat.currency(symbol: '₹', decimalDigits: 2, locale: 'en_IN');
@@ -343,7 +355,23 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
 
               // Items Cards
               ...List.generate(state.lines.length, (i) {
-                return _buildItemCard(i, state.lines[i], money);
+                final line = state.lines[i];
+                final itemKey = line.id.isNotEmpty ? line.id : 'item_row_$i';
+                return _ItemRowCard(
+                  key: ValueKey(itemKey),
+                  index: i,
+                  line: line,
+                  totalLines: state.lines.length,
+                  money: money,
+                  onChanged: (updated) {
+                    ref
+                        .read(invoiceFormProvider.notifier)
+                        .updateLine(i, updated);
+                  },
+                  onDelete: () {
+                    ref.read(invoiceFormProvider.notifier).removeLine(i);
+                  },
+                );
               }),
 
               // Quick Add Buttons Row
@@ -412,8 +440,7 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                         maxLines: 2,
                         decoration: InputDecoration(
                           labelText: 'Notes (Optional)',
-                          hintText:
-                              'e.g. Dispatched with bill and warranty card',
+                          hintText: 'Enter invoice notes or message',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
@@ -425,8 +452,7 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                         maxLines: 2,
                         decoration: InputDecoration(
                           labelText: 'Terms & Conditions',
-                          hintText:
-                              'e.g. 1. Goods once sold will not be taken back.',
+                          hintText: 'Enter payment terms & conditions',
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
@@ -495,184 +521,6 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildItemCard(int index, InvoiceLine line, NumberFormat money) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 12),
-      color: AppColors.white1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: AppColors.grey11),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 12,
-                  backgroundColor: AppColors.grey10,
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.black1),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    line.description.isEmpty
-                        ? 'New Item ${index + 1}'
-                        : line.description,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: AppColors.black2),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () =>
-                      ref.read(invoiceFormProvider.notifier).removeLine(index),
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      color: AppColors.red1, size: 20),
-                  tooltip: 'Delete item',
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              key: ValueKey('desc-$index-${line.description}'),
-              initialValue: line.description,
-              decoration: InputDecoration(
-                labelText: 'Item Name / Description *',
-                hintText: 'e.g. Wireless Mouse',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                isDense: true,
-              ),
-              onChanged: (v) {
-                ref.read(invoiceFormProvider.notifier).updateLine(
-                      index,
-                      line.copyWith(description: v),
-                    );
-              },
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextFormField(
-                    key: ValueKey('qty-$index-${line.quantity}'),
-                    initialValue: line.quantity % 1 == 0
-                        ? line.quantity.toInt().toString()
-                        : line.quantity.toString(),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Qty',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                    onChanged: (v) {
-                      final val = double.tryParse(v) ?? 0.0;
-                      ref.read(invoiceFormProvider.notifier).updateLine(
-                            index,
-                            line.copyWith(quantity: val),
-                          );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 4,
-                  child: TextFormField(
-                    key: ValueKey('rate-$index-${line.unitPrice}'),
-                    initialValue: line.unitPrice
-                        .toStringAsFixed(line.unitPrice % 1 == 0 ? 0 : 2),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Rate (₹)',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                    onChanged: (v) {
-                      final val = double.tryParse(v) ?? 0.0;
-                      ref.read(invoiceFormProvider.notifier).updateLine(
-                            index,
-                            line.copyWith(unitPrice: val),
-                          );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 3,
-                  child: DropdownButtonFormField<double>(
-                    initialValue: line.taxRate,
-                    decoration: InputDecoration(
-                      labelText: 'GST %',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      isDense: true,
-                    ),
-                    items: [0.0, 5.0, 12.0, 18.0, 28.0].map((r) {
-                      return DropdownMenuItem(
-                          value: r, child: Text('${r.toInt()}%'));
-                    }).toList(),
-                    onChanged: (v) {
-                      if (v != null) {
-                        ref.read(invoiceFormProvider.notifier).updateLine(
-                              index,
-                              line.copyWith(taxRate: v),
-                            );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  line.taxRate > 0
-                      ? 'Tax: ${money.format(line.taxAmount)}'
-                      : 'Tax-Free',
-                  style: const TextStyle(fontSize: 11, color: AppColors.grey4),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey10,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Total: ${money.format(line.total)}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                        color: AppColors.black2),
-                  ),
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );
@@ -844,6 +692,275 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ItemRowCard extends StatefulWidget {
+  const _ItemRowCard({
+    super.key,
+    required this.index,
+    required this.line,
+    required this.totalLines,
+    required this.money,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  final int index;
+  final InvoiceLine line;
+  final int totalLines;
+  final NumberFormat money;
+  final ValueChanged<InvoiceLine> onChanged;
+  final VoidCallback onDelete;
+
+  @override
+  State<_ItemRowCard> createState() => _ItemRowCardState();
+}
+
+class _ItemRowCardState extends State<_ItemRowCard> {
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _qtyCtrl;
+  late final TextEditingController _rateCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _descCtrl = TextEditingController(text: widget.line.description);
+    _qtyCtrl = TextEditingController(
+      text: widget.line.quantity <= 0
+          ? ''
+          : (widget.line.quantity % 1 == 0
+              ? widget.line.quantity.toInt().toString()
+              : widget.line.quantity.toString()),
+    );
+    _rateCtrl = TextEditingController(
+      text: widget.line.unitPrice <= 0
+          ? ''
+          : (widget.line.unitPrice % 1 == 0
+              ? widget.line.unitPrice.toInt().toString()
+              : widget.line.unitPrice.toStringAsFixed(2)),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _ItemRowCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Sync description only if changed externally (e.g. from dialog or reset)
+    if (widget.line.description != _descCtrl.text) {
+      _descCtrl.value = _descCtrl.value.copyWith(
+        text: widget.line.description,
+        selection:
+            TextSelection.collapsed(offset: widget.line.description.length),
+      );
+    }
+
+    // Sync quantity only if changed externally
+    final currentQty = double.tryParse(_qtyCtrl.text) ?? 0.0;
+    if (widget.line.quantity != currentQty) {
+      final text = widget.line.quantity <= 0
+          ? ''
+          : (widget.line.quantity % 1 == 0
+              ? widget.line.quantity.toInt().toString()
+              : widget.line.quantity.toString());
+      _qtyCtrl.value = _qtyCtrl.value.copyWith(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+
+    // Sync unit price only if changed externally
+    final currentRate = double.tryParse(_rateCtrl.text) ?? 0.0;
+    if (widget.line.unitPrice != currentRate) {
+      final text = widget.line.unitPrice <= 0
+          ? ''
+          : (widget.line.unitPrice % 1 == 0
+              ? widget.line.unitPrice.toInt().toString()
+              : widget.line.unitPrice.toStringAsFixed(2));
+      _rateCtrl.value = _rateCtrl.value.copyWith(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    _qtyCtrl.dispose();
+    _rateCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final taxRates = [0.0, 5.0, 12.0, 18.0, 28.0];
+    final selectedTax =
+        taxRates.contains(widget.line.taxRate) ? widget.line.taxRate : 0.0;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      color: AppColors.white1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.grey11),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: AppColors.grey10,
+                  child: Text(
+                    '${widget.index + 1}',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.black1),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    widget.line.description.isEmpty
+                        ? 'New Item ${widget.index + 1}'
+                        : widget.line.description,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        color: AppColors.black2),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  onPressed: widget.totalLines > 1 ? widget.onDelete : null,
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: widget.totalLines > 1
+                        ? AppColors.red1
+                        : AppColors.grey5,
+                    size: 20,
+                  ),
+                  tooltip: 'Delete item',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _descCtrl,
+              decoration: InputDecoration(
+                labelText: 'Item Name / Description *',
+                hintText: 'Enter item description',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                isDense: true,
+              ),
+              onChanged: (v) {
+                widget.onChanged(widget.line.copyWith(description: v));
+              },
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _qtyCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Qty',
+                      hintText: '1',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      isDense: true,
+                    ),
+                    onChanged: (v) {
+                      final val = double.tryParse(v) ?? 0.0;
+                      widget.onChanged(widget.line.copyWith(quantity: val));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 4,
+                  child: TextField(
+                    controller: _rateCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Rate (₹)',
+                      hintText: '0.00',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      isDense: true,
+                    ),
+                    onChanged: (v) {
+                      final val = double.tryParse(v) ?? 0.0;
+                      widget.onChanged(widget.line.copyWith(unitPrice: val));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 3,
+                  child: DropdownButtonFormField<double>(
+                    initialValue: selectedTax,
+                    decoration: InputDecoration(
+                      labelText: 'GST %',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      isDense: true,
+                    ),
+                    items: taxRates.map((r) {
+                      return DropdownMenuItem(
+                          value: r, child: Text('${r.toInt()}%'));
+                    }).toList(),
+                    onChanged: (v) {
+                      if (v != null) {
+                        widget.onChanged(widget.line.copyWith(taxRate: v));
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.line.taxRate > 0
+                      ? 'Tax: ${widget.money.format(widget.line.taxAmount)}'
+                      : 'Tax-Free',
+                  style: const TextStyle(fontSize: 11, color: AppColors.grey4),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.grey10,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Total: ${widget.money.format(widget.line.total)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        color: AppColors.black2),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

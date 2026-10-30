@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
+import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../application/invoice_form_controller.dart';
 import 'steps/step1_business_details.dart';
 import 'steps/step2_invoice_details.dart';
@@ -143,12 +144,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                   .read(invoiceFormProvider.notifier)
                   .completeAndResetInvoice();
               setState(() => _currentTabIndex = 0);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Started fresh invoice with reset fields.'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+              AppSnackbar.showInfo('Started fresh invoice with reset fields.');
             },
             icon: const Icon(
               Icons.add_circle_outline_rounded,
@@ -187,12 +183,7 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
                 onOpenInvoice: (inv) {
                   ref.read(invoiceFormProvider.notifier).loadInvoice(inv);
                   setState(() => _currentTabIndex = 2);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Loaded ${inv.invoiceNumber} into editor.'),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
+                  AppSnackbar.showSuccess('Loaded ${inv.invoiceNumber} into editor.');
                 },
               ),
 

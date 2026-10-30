@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -24,10 +25,26 @@ class InvoicePdfService {
     final hasTax = invoice.totalTax > 0;
     final hasDiscount = invoice.totalDiscount > 0;
 
+    pw.MemoryImage? logoImage;
+    if (invoice.businessLogoPath != null && invoice.businessLogoPath!.isNotEmpty) {
+      final file = File(invoice.businessLogoPath!);
+      if (file.existsSync()) {
+        try {
+          logoImage = pw.MemoryImage(file.readAsBytesSync());
+        } catch (_) {}
+      }
+    }
+
     doc.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          buildBackground: (context) => pw.FullPage(
+            ignoreMargins: true,
+            child: pw.Container(color: PdfColors.white),
+          ),
+        ),
         build: (context) => [
           // Header Banner
           pw.Container(
@@ -79,6 +96,14 @@ class InvoicePdfService {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
+                    if (logoImage != null) ...[
+                      pw.Container(
+                        width: 55,
+                        height: 55,
+                        margin: const pw.EdgeInsets.only(bottom: 8),
+                        child: pw.Image(logoImage, fit: pw.BoxFit.contain),
+                      ),
+                    ],
                     pw.Text(
                       invoice.businessName.isEmpty
                           ? 'Your Business Name'
@@ -496,11 +521,30 @@ class InvoicePdfService {
     return await doc.save();
   }
 
-  /// Generates a high-quality PNG image of the invoice (page 1)
+  /// Generates a high-quality PNG image of the invoice (page 1) with an explicit solid white background
   static Future<Uint8List> generateInvoiceImage(InvoiceDraft invoice) async {
     final pdfBytes = await generatePdfBytes(invoice);
     await for (final page in Printing.raster(pdfBytes, pages: [0], dpi: 200)) {
-      return await page.toPng();
+      final ui.Image rasterImage = await page.toImage();
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(
+        recorder,
+        ui.Rect.fromLTWH(0, 0, rasterImage.width.toDouble(), rasterImage.height.toDouble()),
+      );
+
+      // Explicitly paint solid white background so image is NEVER dark/transparent on dark mode devices
+      canvas.drawRect(
+        ui.Rect.fromLTWH(0, 0, rasterImage.width.toDouble(), rasterImage.height.toDouble()),
+        ui.Paint()..color = const ui.Color(0xFFFFFFFF),
+      );
+
+      // Draw the rendered invoice document on top of the white background
+      canvas.drawImage(rasterImage, ui.Offset.zero, ui.Paint());
+
+      final picture = recorder.endRecording();
+      final finalImage = await picture.toImage(rasterImage.width, rasterImage.height);
+      final byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+      return byteData!.buffer.asUint8List();
     }
     throw Exception('Failed to rasterize invoice into image.');
   }
@@ -514,7 +558,7 @@ class InvoicePdfService {
     );
   }
 
-  /// Shares the PDF via standard OS share sheet
+  /// Shares the PDF via standard OS share sheet (file only, no extra text)
   static Future<void> sharePdf(InvoiceDraft invoice) async {
     final bytes = await generatePdfBytes(invoice);
     final tempDir = await getTemporaryDirectory();
@@ -522,21 +566,19 @@ class InvoicePdfService {
     final file = File('${tempDir.path}/Invoice_$cleanNum.pdf');
     await file.writeAsBytes(bytes, flush: true);
 
-    final text = getWhatsAppShareText(invoice);
     await SharePlus.instance.share(
       ShareParams(
         files: [
           XFile(file.path,
               mimeType: 'application/pdf', name: 'Invoice_$cleanNum.pdf')
         ],
-        text: text,
         subject:
             'Invoice #${invoice.invoiceNumber} from ${invoice.businessName}',
       ),
     );
   }
 
-  /// Shares the generated Invoice as an image (PNG)
+  /// Shares the generated Invoice as an image (PNG file only, no extra text)
   static Future<void> shareImage(InvoiceDraft invoice) async {
     final imageBytes = await generateInvoiceImage(invoice);
     final tempDir = await getTemporaryDirectory();
@@ -544,13 +586,11 @@ class InvoicePdfService {
     final file = File('${tempDir.path}/Invoice_$cleanNum.png');
     await file.writeAsBytes(imageBytes, flush: true);
 
-    final text = getWhatsAppShareText(invoice);
     await SharePlus.instance.share(
       ShareParams(
         files: [
           XFile(file.path, mimeType: 'image/png', name: 'Invoice_$cleanNum.png')
         ],
-        text: text,
         subject:
             'Invoice #${invoice.invoiceNumber} from ${invoice.businessName}',
       ),

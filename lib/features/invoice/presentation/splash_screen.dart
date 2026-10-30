@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
 import 'package:quick_invoice_maker/app/app_router.dart';
@@ -102,45 +103,45 @@ class _SplashScreenState extends State<SplashScreen>
                     children: [
                       // EasyBill Logo Symbol
                       Container(
-                        width: 96,
-                        height: 96,
+                        width: 96.w,
+                        height: 96.w,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [AppColors.red1, AppColors.blue2],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius: BorderRadius.circular(24.r),
                           boxShadow: [
                             BoxShadow(
                               color: AppColors.red1.withValues(alpha: 0.4),
-                              blurRadius: 28,
-                              offset: const Offset(0, 10),
+                              blurRadius: 28.r,
+                              offset: Offset(0, 10.h),
                             ),
                           ],
                         ),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.receipt_long_rounded,
-                              size: 52,
+                              size: 52.sp,
                               color: AppColors.white1,
                             ),
                             Positioned(
-                              right: 12,
-                              bottom: 12,
+                              right: 12.w,
+                              bottom: 12.h,
                               child: Container(
-                                padding: const EdgeInsets.all(4),
+                                padding: EdgeInsets.all(4.r),
                                 decoration: const BoxDecoration(
                                   color: AppColors.green1,
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Text(
+                                child: Text(
                                   '₹',
                                   style: TextStyle(
                                     color: AppColors.white1,
-                                    fontSize: 14,
+                                    fontSize: 14.sp,
                                     fontWeight: FontWeight.w900,
                                     height: 1.0,
                                   ),
@@ -150,34 +151,34 @@ class _SplashScreenState extends State<SplashScreen>
                           ],
                         ),
                       ),
-                      const SizedBox(height: 26),
+                      SizedBox(height: 26.h),
 
                       // Brand Name
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
+                          Text(
                             'EasyBill',
                             style: TextStyle(
                               color: AppColors.white1,
-                              fontSize: 32,
+                              fontSize: 32.sp,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 2.5,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8.w),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 7, vertical: 3),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 7.w, vertical: 3.h),
                             decoration: BoxDecoration(
                               color: AppColors.red1,
-                              borderRadius: BorderRadius.circular(6),
+                              borderRadius: BorderRadius.circular(6.r),
                             ),
-                            child: const Text(
+                            child: Text(
                               'PRO',
                               style: TextStyle(
                                 color: AppColors.white1,
-                                fontSize: 11,
+                                fontSize: 11.sp,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 1.0,
                               ),
@@ -185,14 +186,14 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8.h),
 
                       // Tagline
-                      const Text(
+                      Text(
                         'Smart Invoicing, GST Billing & Accounting',
                         style: TextStyle(
                           color: AppColors.blue8,
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.3,
                         ),

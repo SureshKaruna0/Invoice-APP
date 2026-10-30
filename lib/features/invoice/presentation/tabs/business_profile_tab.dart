@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
+import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../../application/invoice_form_controller.dart';
 
 class BusinessProfileTab extends ConsumerWidget {
@@ -11,9 +14,33 @@ class BusinessProfileTab extends ConsumerWidget {
 
   final VoidCallback onEditBusiness;
 
+  Future<void> _pickLogo(BuildContext context, WidgetRef ref) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? file = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (file != null) {
+        ref.read(invoiceFormProvider.notifier).updateBusinessLogo(file.path);
+        if (context.mounted) {
+          AppSnackbar.showSuccess('Business logo updated!');
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackbar.showError('Failed to select logo: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(invoiceFormProvider);
+    final logoPath = state.businessLogoPath;
+    final hasLogo = logoPath != null && logoPath.isNotEmpty && File(logoPath).existsSync();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
@@ -46,14 +73,61 @@ class BusinessProfileTab extends ConsumerWidget {
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.red1,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Icon(Icons.storefront_rounded, color: AppColors.white1, size: 28),
+                        // Logo Avatar with tap to upload/change
+                        Stack(
+                          children: [
+                            InkWell(
+                              onTap: () => _pickLogo(context, ref),
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                width: 72,
+                                height: 72,
+                                decoration: BoxDecoration(
+                                  color: AppColors.white1,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.whiteTransparent, width: 2),
+                                ),
+                                child: hasLogo
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(14),
+                                        child: Image.file(
+                                          File(logoPath),
+                                          fit: BoxFit.cover,
+                                          width: 72,
+                                          height: 72,
+                                        ),
+                                      )
+                                    : const Center(
+                                        child: Icon(
+                                          Icons.storefront_rounded,
+                                          color: AppColors.blue1,
+                                          size: 34,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            Positioned(
+                              right: -2,
+                              bottom: -2,
+                              child: InkWell(
+                                onTap: () => _pickLogo(context, ref),
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.red1,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 14,
+                                    color: AppColors.white1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
@@ -69,51 +143,79 @@ class BusinessProfileTab extends ConsumerWidget {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      state.businessName.isEmpty ? 'Your Business' : state.businessName,
+                      state.businessName.isEmpty ? 'Your Business Name' : state.businessName,
                       style: const TextStyle(
                         color: AppColors.white1,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    if (state.businessGstin.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'GSTIN: ${state.businessGstin}',
-                        style: const TextStyle(color: AppColors.blue8, fontWeight: FontWeight.w700, fontSize: 13),
+                    const SizedBox(height: 4),
+                    Text(
+                      state.businessGstin.isNotEmpty
+                          ? 'GSTIN: ${state.businessGstin}'
+                          : 'GSTIN: Not provided',
+                      style: const TextStyle(
+                        color: AppColors.blue8,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
                       ),
-                    ],
-                    if (state.businessAddress.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        state.businessAddress,
-                        style: const TextStyle(color: AppColors.grey5, fontSize: 13),
-                      ),
-                    ],
-                    if (state.businessPhone.isNotEmpty || state.businessEmail.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Row(
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      state.businessAddress.isNotEmpty
+                          ? state.businessAddress
+                          : 'Address: Not provided',
+                      style: const TextStyle(color: AppColors.grey5, fontSize: 13),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone, size: 14, color: AppColors.white1),
+                        const SizedBox(width: 4),
+                        Text(
+                          state.businessPhone.isNotEmpty ? state.businessPhone : 'No phone set',
+                          style: const TextStyle(color: AppColors.white1, fontSize: 12),
+                        ),
+                        const SizedBox(width: 14),
+                        const Icon(Icons.email, size: 14, color: AppColors.white1),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            state.businessEmail.isNotEmpty ? state.businessEmail : 'No email set',
+                            style: const TextStyle(color: AppColors.white1, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () => _pickLogo(context, ref),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (state.businessPhone.isNotEmpty) ...[
-                            const Icon(Icons.phone, size: 14, color: AppColors.white1),
-                            const SizedBox(width: 4),
-                            Text(state.businessPhone, style: const TextStyle(color: AppColors.white1, fontSize: 12)),
-                            const SizedBox(width: 14),
-                          ],
-                          if (state.businessEmail.isNotEmpty) ...[
-                            const Icon(Icons.email, size: 14, color: AppColors.white1),
-                            const SizedBox(width: 4),
-                            Text(state.businessEmail, style: const TextStyle(color: AppColors.white1, fontSize: 12)),
-                          ],
+                          const Icon(Icons.upload_file_rounded, size: 14, color: AppColors.blue8),
+                          const SizedBox(width: 4),
+                          Text(
+                            hasLogo ? 'Change Business Logo' : 'Upload Business Logo',
+                            style: const TextStyle(
+                              color: AppColors.blue8,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
                         ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 18),
 
-              // Bank & Payment QR Setup Card
+              // Bank & Payment Details Card
               Card(
                 elevation: 0,
                 color: AppColors.white1,
@@ -131,90 +233,55 @@ class BusinessProfileTab extends ConsumerWidget {
                           Icon(Icons.qr_code_2_rounded, size: 22, color: AppColors.green1),
                           SizedBox(width: 8),
                           Text(
-                            'Instant Payment Details',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.black2),
+                            'Bank & Payment Details',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.black2,
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      _infoTile('UPI ID (Payment Link)', state.upiId.isEmpty ? 'Not specified' : state.upiId),
-                      _infoTile('Bank Account', state.bankAccount.isEmpty ? 'Not specified' : state.bankAccount),
-                      _infoTile('IFSC Code', state.bankIfsc.isEmpty ? 'Not specified' : state.bankIfsc),
-                      _infoTile('Bank Name', state.bankName.isEmpty ? 'Not specified' : state.bankName),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // EasyBill App Features & Info Card
-              Card(
-                elevation: 0,
-                color: AppColors.white1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: AppColors.grey11),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.info_outline_rounded, size: 22, color: AppColors.blue2),
-                          SizedBox(width: 8),
-                          Text(
-                            'About EasyBill Invoicing',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.black2),
-                          ),
-                        ],
+                      _infoTile(
+                        'UPI ID (Payment Link)',
+                        state.upiId.isEmpty ? 'Not specified' : state.upiId,
                       ),
-                      const SizedBox(height: 12),
-                      _featureRow(Icons.offline_bolt_rounded, '100% Offline & Private', 'No servers or accounts required. Your data remains strictly on your device.'),
-                      const SizedBox(height: 10),
-                      _featureRow(Icons.calculate_outlined, 'Indian GST Compliant', 'Calculates CGST, SGST, IGST, HSN codes, discounts, and amount in words.'),
-                      const SizedBox(height: 10),
-                      _featureRow(Icons.share_rounded, 'Multi-Media Export', 'Export and share invoices directly as PDF or PNG image cards on WhatsApp.'),
+                      _infoTile(
+                        'Bank Name',
+                        state.bankName.isEmpty ? 'Not specified' : state.bankName,
+                      ),
+                      _infoTile(
+                        'Account Number',
+                        state.bankAccount.isEmpty ? 'Not specified' : state.bankAccount,
+                      ),
+                      _infoTile(
+                        'IFSC Code',
+                        state.bankIfsc.isEmpty ? 'Not specified' : state.bankIfsc,
+                      ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
 
-              // Reset App Data
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.red1,
-                  side: const BorderSide(color: AppColors.red2),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              // Direct Button to Edit Business Information
+              SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.blue1,
+                    foregroundColor: AppColors.white1,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    elevation: 1,
+                  ),
+                  onPressed: onEditBusiness,
+                  icon: const Icon(Icons.edit_note_rounded),
+                  label: const Text(
+                    'Edit Business Information',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
                 ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Reset Form?'),
-                      content: const Text('This will clear the current draft and generate a fresh invoice number.'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-                        FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: AppColors.red1),
-                          onPressed: () {
-                            ref.read(invoiceFormProvider.notifier).completeAndResetInvoice();
-                            Navigator.of(ctx).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Form has been reset with a new invoice number.')),
-                            );
-                          },
-                          child: const Text('Reset'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reset Current Invoice Draft'),
               ),
             ],
           ),
@@ -225,33 +292,21 @@ class BusinessProfileTab extends ConsumerWidget {
 
   Widget _infoTile(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontSize: 13, color: AppColors.grey4)),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.black2)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.black2,
+            ),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _featureRow(IconData icon, String title, String desc) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: AppColors.blue2),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.black2)),
-              Text(desc, style: const TextStyle(fontSize: 11, color: AppColors.grey4)),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

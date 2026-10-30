@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
+import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../../application/invoice_pdf_service.dart';
 import '../../domain/invoice_draft.dart';
 
@@ -44,14 +45,7 @@ class _InvoiceShareBottomSheetState extends State<InvoiceShareBottomSheet> {
       widget.onShareCompleted!();
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Invoice shared & saved! Values reset for next invoice.'),
-          backgroundColor: AppColors.green1,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      AppSnackbar.showSuccess('Invoice shared & saved! Values reset for next invoice.');
       Navigator.of(context).pop();
     }
   }
@@ -127,17 +121,11 @@ class _InvoiceShareBottomSheetState extends State<InvoiceShareBottomSheet> {
   void _copyInvoiceText() {
     final text = InvoicePdfService.getWhatsAppShareText(widget.invoice);
     Clipboard.setData(ClipboardData(text: text));
-    _showToast('Invoice summary copied to clipboard! Ready to paste.');
+    AppSnackbar.showSuccess('Invoice summary copied to clipboard! Ready to paste.');
   }
 
   void _showToast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
+    AppSnackbar.showInfo(msg);
   }
 
   @override

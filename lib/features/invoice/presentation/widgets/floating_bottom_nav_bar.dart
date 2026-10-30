@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
 
 class EasyBillFloatingNavBar extends StatelessWidget {
@@ -49,21 +50,21 @@ class EasyBillFloatingNavBar extends StatelessWidget {
 
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(22, 0, 22, 16),
-        height: 64,
+        margin: EdgeInsets.fromLTRB(20.w, 0, 20.w, 14.h),
+        height: 60.h,
         decoration: BoxDecoration(
           color: AppColors.black2, // Sleek dark slate pill as in user image
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(28.r),
           boxShadow: [
             BoxShadow(
               color: AppColors.black6.withValues(alpha: 0.35),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+              blurRadius: 18.r,
+              offset: Offset(0, 8.h),
             ),
             BoxShadow(
               color: AppColors.blue2.withValues(alpha: 0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              blurRadius: 8.r,
+              offset: Offset(0, 2.h),
             ),
           ],
           border: Border.all(
@@ -80,7 +81,7 @@ class EasyBillFloatingNavBar extends StatelessWidget {
             return Expanded(
               child: InkWell(
                 onTap: () => onTap(index),
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(24.r),
                 splashColor: AppColors.white1.withValues(alpha: 0.1),
                 highlightColor: Colors.transparent,
                 child: Column(
@@ -90,19 +91,19 @@ class EasyBillFloatingNavBar extends StatelessWidget {
                     AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeOutCubic,
-                      width: isSelected ? 14 : 0,
-                      height: 3,
-                      margin: const EdgeInsets.only(bottom: 5),
+                      width: isSelected ? 14.w : 0,
+                      height: 3.h,
+                      margin: EdgeInsets.only(bottom: 4.h),
                       decoration: BoxDecoration(
                         color:
                             isSelected ? AppColors.blue7 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.circular(2.r),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
                                   color: AppColors.blue7.withValues(alpha: 0.6),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 1),
+                                  blurRadius: 6.r,
+                                  offset: Offset(0, 1.h),
                                 ),
                               ]
                             : null,
@@ -112,7 +113,7 @@ class EasyBillFloatingNavBar extends StatelessWidget {
                     // Icon
                     Icon(
                       isSelected ? item.activeIcon : item.icon,
-                      size: 24,
+                      size: 22.sp,
                       color: isSelected ? AppColors.white1 : AppColors.grey4,
                     ),
                   ],

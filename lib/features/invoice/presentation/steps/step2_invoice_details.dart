@@ -173,7 +173,7 @@ class _Step2InvoiceDetailsState extends ConsumerState<Step2InvoiceDetails> {
                           textCapitalization: TextCapitalization.characters,
                           decoration: InputDecoration(
                             labelText: 'Invoice Number *',
-                            hintText: 'e.g. INV-2026-001',
+                            hintText: 'Enter invoice number',
                             prefixIcon: const Icon(Icons.tag_rounded),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -303,7 +303,7 @@ class _Step2InvoiceDetailsState extends ConsumerState<Step2InvoiceDetails> {
                           textCapitalization: TextCapitalization.words,
                           decoration: InputDecoration(
                             labelText: 'Customer / Client Name *',
-                            hintText: 'e.g. Ramesh Kumar / Kaveri Traders',
+                            hintText: 'Enter customer name',
                             prefixIcon: const Icon(Icons.person_outline),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -317,7 +317,7 @@ class _Step2InvoiceDetailsState extends ConsumerState<Step2InvoiceDetails> {
                           keyboardType: TextInputType.phone,
                           decoration: InputDecoration(
                             labelText: 'Customer Mobile / WhatsApp Number',
-                            hintText: '+91 98765 00000',
+                            hintText: 'Enter customer mobile number',
                             prefixIcon: const Icon(Icons.chat_rounded, color: AppColors.green1),
                             helperText: 'Used for direct WhatsApp invoice dispatch',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -331,7 +331,7 @@ class _Step2InvoiceDetailsState extends ConsumerState<Step2InvoiceDetails> {
                           maxLines: 2,
                           decoration: InputDecoration(
                             labelText: 'Customer Billing Address (Optional)',
-                            hintText: 'Plot / Flat, Street, City, State',
+                            hintText: 'Enter customer billing address',
                             prefixIcon: const Icon(Icons.location_city_outlined),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -344,7 +344,7 @@ class _Step2InvoiceDetailsState extends ConsumerState<Step2InvoiceDetails> {
                           textCapitalization: TextCapitalization.characters,
                           decoration: InputDecoration(
                             labelText: 'Customer GSTIN (For B2B Invoices)',
-                            hintText: '29ABCDE5678F1Z2',
+                            hintText: 'Enter customer 15-digit GSTIN',
                             prefixIcon: const Icon(Icons.badge_outlined),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),

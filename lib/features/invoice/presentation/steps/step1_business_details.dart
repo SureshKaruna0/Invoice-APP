@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
+import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../../application/invoice_form_controller.dart';
 
 class Step1BusinessDetails extends ConsumerStatefulWidget {
@@ -27,6 +30,8 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
   late final TextEditingController _bankAccount;
   late final TextEditingController _bankIfsc;
   late final TextEditingController _upiId;
+
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -71,6 +76,32 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
     );
   }
 
+  Future<void> _pickLogo() async {
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+      if (file != null) {
+        ref.read(invoiceFormProvider.notifier).updateBusinessLogo(file.path);
+        if (mounted) {
+          AppSnackbar.showSuccess('Business logo updated successfully!');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.showError('Failed to select logo: $e');
+      }
+    }
+  }
+
+  void _removeLogo() {
+    ref.read(invoiceFormProvider.notifier).updateBusinessLogo(null);
+    AppSnackbar.showInfo('Business logo removed');
+  }
+
   void _onContinue() {
     if (!_formKey.currentState!.validate()) return;
     _saveData();
@@ -79,6 +110,10 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(invoiceFormProvider);
+    final logoPath = state.businessLogoPath;
+    final hasLogo = logoPath != null && logoPath.isNotEmpty && File(logoPath).existsSync();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 110),
       child: Center(
@@ -97,6 +132,110 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                   icon: Icons.storefront_rounded,
                 ),
                 const SizedBox(height: 18),
+
+                // Business Logo Upload Card
+                Card(
+                  elevation: 0,
+                  color: AppColors.white1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: AppColors.grey11),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Row(
+                      children: [
+                        // Logo Thumbnail / Placeholder
+                        InkWell(
+                          onTap: _pickLogo,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: AppColors.grey10,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppColors.grey11, width: 1.5),
+                            ),
+                            child: hasLogo
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Image.file(
+                                      File(logoPath),
+                                      fit: BoxFit.cover,
+                                      width: 72,
+                                      height: 72,
+                                    ),
+                                  )
+                                : const Center(
+                                    child: Icon(
+                                      Icons.add_a_photo_outlined,
+                                      color: AppColors.blue1,
+                                      size: 30,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // Logo Action Texts & Buttons
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Business Logo',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.black2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                hasLogo
+                                    ? 'Logo will be printed on the invoice'
+                                    : 'Upload your company / store logo for invoices',
+                                style: const TextStyle(fontSize: 12, color: AppColors.grey4),
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  FilledButton.tonalIcon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.blue8,
+                                      foregroundColor: AppColors.blue1,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    onPressed: _pickLogo,
+                                    icon: const Icon(Icons.upload_file_rounded, size: 16),
+                                    label: Text(hasLogo ? 'Change Logo' : 'Upload Logo'),
+                                  ),
+                                  if (hasLogo) ...[
+                                    const SizedBox(width: 8),
+                                    TextButton.icon(
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: AppColors.red1,
+                                        visualDensity: VisualDensity.compact,
+                                        textStyle: const TextStyle(fontSize: 12),
+                                      ),
+                                      onPressed: _removeLogo,
+                                      icon: const Icon(Icons.delete_outline, size: 16),
+                                      label: const Text('Remove'),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Primary Business Card
                 Card(
@@ -133,7 +272,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                           textCapitalization: TextCapitalization.words,
                           decoration: InputDecoration(
                             labelText: 'Business / Company Name *',
-                            hintText: 'e.g. Sharma Enterprises',
+                            hintText: 'Enter business or company name',
                             prefixIcon: const Icon(Icons.business),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -150,7 +289,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                                 keyboardType: TextInputType.phone,
                                 decoration: InputDecoration(
                                   labelText: 'Phone Number',
-                                  hintText: '+91 98765 43210',
+                                  hintText: 'Enter phone number',
                                   prefixIcon: const Icon(Icons.phone_outlined),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
@@ -164,7 +303,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                                 keyboardType: TextInputType.emailAddress,
                                 decoration: InputDecoration(
                                   labelText: 'Email Address',
-                                  hintText: 'contact@company.com',
+                                  hintText: 'Enter email address',
                                   prefixIcon: const Icon(Icons.email_outlined),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
@@ -180,9 +319,8 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                           textCapitalization: TextCapitalization.characters,
                           decoration: InputDecoration(
                             labelText: 'GSTIN / Tax ID (Optional)',
-                            hintText: '29ABCDE1234F1Z5',
+                            hintText: 'Enter 15-digit GSTIN number',
                             prefixIcon: const Icon(Icons.receipt_outlined),
-                            helperText: '15-digit Indian GST number displayed on tax invoice',
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
@@ -194,7 +332,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                           maxLines: 2,
                           decoration: InputDecoration(
                             labelText: 'Business Address',
-                            hintText: 'Shop No, Street, City, State, Pincode',
+                            hintText: 'Enter business address (shop, street, city, pin)',
                             prefixIcon: const Icon(Icons.location_on_outlined),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -244,7 +382,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                           onChanged: (_) => _saveData(),
                           decoration: InputDecoration(
                             labelText: 'UPI ID (Google Pay / PhonePe / Paytm)',
-                            hintText: 'yourbusiness@upi',
+                            hintText: 'Enter UPI ID (e.g. name@upi)',
                             prefixIcon: const Icon(Icons.qr_code_2_rounded, color: AppColors.green1),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -256,7 +394,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                           onChanged: (_) => _saveData(),
                           decoration: InputDecoration(
                             labelText: 'Bank Name',
-                            hintText: 'e.g. HDFC Bank / State Bank of India',
+                            hintText: 'Enter bank name',
                             prefixIcon: const Icon(Icons.account_balance),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
@@ -273,7 +411,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                                 keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
                                   labelText: 'Account Number',
-                                  hintText: '50200012345678',
+                                  hintText: 'Enter bank account number',
                                   prefixIcon: const Icon(Icons.pin),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
@@ -288,7 +426,7 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                                 textCapitalization: TextCapitalization.characters,
                                 decoration: InputDecoration(
                                   labelText: 'IFSC Code',
-                                  hintText: 'HDFC0001234',
+                                  hintText: 'Enter IFSC code',
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                               ),

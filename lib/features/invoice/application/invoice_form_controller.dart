@@ -9,53 +9,40 @@ final invoiceFormProvider =
 
 class InvoiceFormState {
   const InvoiceFormState({
-    this.businessName = 'EasyBill Traders',
-    this.businessAddress =
-        'Shop #14, Commercial Complex, M.G. Road, Bengaluru - 560001',
-    this.businessPhone = '+91 98765 43210',
-    this.businessEmail = 'sales@easybilltraders.in',
-    this.businessGstin = '29ABCDE1234F1Z5',
-    this.bankName = 'HDFC Bank',
-    this.bankAccount = '50200012345678',
-    this.bankIfsc = 'HDFC0001234',
-    this.upiId = 'easybilltraders@upi',
-    this.customerName = 'Sharma Enterprises',
-    this.customerAddress = 'Plot 45, Sector 5, Industrial Area, Bengaluru',
-    this.customerPhone = '+91 91234 56789',
-    this.customerGstin = '29XYZAB5678C1Z2',
-    this.invoiceNumber = 'INV-2026-001',
+    this.businessLogoPath,
+    this.businessName = '',
+    this.businessAddress = '',
+    this.businessPhone = '',
+    this.businessEmail = '',
+    this.businessGstin = '',
+    this.bankName = '',
+    this.bankAccount = '',
+    this.bankIfsc = '',
+    this.upiId = '',
+    this.customerName = '',
+    this.customerAddress = '',
+    this.customerPhone = '',
+    this.customerGstin = '',
+    this.invoiceNumber = 'INV-001',
     this.invoiceDate,
     this.dueDate,
     this.paymentStatus = 'Pending',
     this.paymentMode = 'UPI / Cash',
-    this.notes =
-        'Thank you for choosing EasyBill! Goods are dispatched with care.',
-    this.terms =
-        '1. Goods once sold will not be taken back.\n2. Payment is due within 15 days of invoice date.\n3. Subject to Bengaluru jurisdiction.',
+    this.notes = '',
+    this.terms = '',
     this.currentStep = 0,
     this.lines = const [
       InvoiceLine(
-        description: 'Cotton T-Shirt Premium (Round Neck)',
-        quantity: 10,
-        unitPrice: 350.0,
-        hsnCode: '6109',
-        unit: 'Pcs',
-        discount: 50.0,
-        taxRate: 5.0,
-      ),
-      InvoiceLine(
-        description: 'Denim Jeans Classic Fit',
-        quantity: 5,
-        unitPrice: 850.0,
-        hsnCode: '6203',
-        unit: 'Pcs',
-        discount: 100.0,
-        taxRate: 12.0,
+        id: 'line_initial_1',
+        description: '',
+        quantity: 1,
+        unitPrice: 0.0,
       ),
     ],
     this.savedInvoices = const [],
   });
 
+  final String? businessLogoPath;
   final String businessName;
   final String businessAddress;
   final String businessPhone;
@@ -95,6 +82,7 @@ class InvoiceFormState {
   double get total => lines.fold(0.0, (sum, line) => sum + line.total);
 
   InvoiceDraft toDraft() => InvoiceDraft(
+        businessLogoPath: businessLogoPath,
         businessName: businessName,
         businessAddress: businessAddress,
         businessPhone: businessPhone,
@@ -119,6 +107,8 @@ class InvoiceFormState {
       );
 
   InvoiceFormState copyWith({
+    String? businessLogoPath,
+    bool clearLogo = false,
     String? businessName,
     String? businessAddress,
     String? businessPhone,
@@ -144,6 +134,8 @@ class InvoiceFormState {
     List<InvoiceDraft>? savedInvoices,
   }) {
     return InvoiceFormState(
+      businessLogoPath:
+          clearLogo ? null : (businessLogoPath ?? this.businessLogoPath),
       businessName: businessName ?? this.businessName,
       businessAddress: businessAddress ?? this.businessAddress,
       businessPhone: businessPhone ?? this.businessPhone,
@@ -173,46 +165,10 @@ class InvoiceFormState {
 
 class InvoiceFormController extends StateNotifier<InvoiceFormState> {
   InvoiceFormController()
-      : super(InvoiceFormState(invoiceDate: DateTime.now())) {
-    _initSeedHistory();
-  }
-
-  void _initSeedHistory() {
-    final now = DateTime.now();
-    final sample1 = InvoiceDraft(
-      businessName: 'EasyBill Traders',
-      businessAddress:
-          'Shop #14, Commercial Complex, M.G. Road, Bengaluru - 560001',
-      businessPhone: '+91 98765 43210',
-      businessEmail: 'sales@easybilltraders.in',
-      businessGstin: '29ABCDE1234F1Z5',
-      customerName: 'Kaveri Mart',
-      customerAddress: 'Brigade Road, Bengaluru',
-      customerPhone: '+91 94444 11223',
-      invoiceNumber: 'INV-2026-000',
-      invoiceDate: now.subtract(const Duration(days: 3)),
-      dueDate: now.add(const Duration(days: 12)),
-      paymentStatus: 'Paid',
-      bankName: 'HDFC Bank',
-      bankAccount: '50200012345678',
-      bankIfsc: 'HDFC0001234',
-      upiId: 'easybilltraders@upi',
-      lines: const [
-        InvoiceLine(
-            description: 'Silk Sarees Banarasi',
-            quantity: 2,
-            unitPrice: 3200,
-            taxRate: 5),
-        InvoiceLine(
-            description: 'Designer Kurti Set',
-            quantity: 4,
-            unitPrice: 850,
-            taxRate: 5),
-      ],
-    );
-
-    state = state.copyWith(savedInvoices: [sample1]);
-  }
+      : super(InvoiceFormState(
+          invoiceDate: DateTime.now(),
+          dueDate: DateTime.now().add(const Duration(days: 15)),
+        ));
 
   void setStep(int step) {
     if (step >= 0 && step <= 2) {
@@ -232,7 +188,16 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
     }
   }
 
+  void updateBusinessLogo(String? path) {
+    if (path == null) {
+      state = state.copyWith(clearLogo: true);
+    } else {
+      state = state.copyWith(businessLogoPath: path);
+    }
+  }
+
   void updateBusinessDetails({
+    String? logoPath,
     String? name,
     String? address,
     String? phone,
@@ -244,6 +209,7 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
     String? upiId,
   }) {
     state = state.copyWith(
+      businessLogoPath: logoPath,
       businessName: name,
       businessAddress: address,
       businessPhone: phone,
@@ -288,16 +254,29 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
   }
 
   void addLine([InvoiceLine? line]) {
+    final uniqueId = 'line_${DateTime.now().microsecondsSinceEpoch}';
+    final lineToAdd = line != null
+        ? (line.id.isEmpty ? line.copyWith(id: uniqueId) : line)
+        : InvoiceLine(
+            id: uniqueId,
+            description: '',
+            quantity: 1,
+            unitPrice: 0.0,
+          );
     state = state.copyWith(lines: [
       ...state.lines,
-      line ?? const InvoiceLine(description: '', quantity: 1, unitPrice: 0),
+      lineToAdd,
     ]);
   }
 
   void updateLine(int index, InvoiceLine line) {
     if (index < 0 || index >= state.lines.length) return;
     final updated = [...state.lines];
-    updated[index] = line;
+    final existingId = updated[index].id;
+    final finalized = (line.id.isEmpty && existingId.isNotEmpty)
+        ? line.copyWith(id: existingId)
+        : line;
+    updated[index] = finalized;
     state = state.copyWith(lines: updated);
   }
 
@@ -335,15 +314,22 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       dueDate: DateTime.now().add(const Duration(days: 15)),
       paymentStatus: 'Pending',
       currentStep: 0,
-      lines: const [
-        InvoiceLine(description: '', quantity: 1, unitPrice: 0),
+      lines: [
+        InvoiceLine(
+          id: 'line_${DateTime.now().microsecondsSinceEpoch}',
+          description: '',
+          quantity: 1,
+          unitPrice: 0.0,
+        ),
       ],
       notes: '',
+      terms: '',
     );
   }
 
   void loadInvoice(InvoiceDraft draft) {
     state = state.copyWith(
+      businessLogoPath: draft.businessLogoPath,
       businessName: draft.businessName,
       businessAddress: draft.businessAddress,
       businessPhone: draft.businessPhone,
@@ -385,6 +371,8 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       lines: const [
         InvoiceLine(description: '', quantity: 1, unitPrice: 0),
       ],
+      notes: '',
+      terms: '',
     );
   }
 }

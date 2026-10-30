@@ -1,5 +1,6 @@
 class InvoiceLine {
   const InvoiceLine({
+    this.id = '',
     required this.description,
     required this.quantity,
     required this.unitPrice,
@@ -9,6 +10,7 @@ class InvoiceLine {
     this.taxRate = 0.0,
   });
 
+  final String id;
   final String description;
   final String hsnCode;
   final double quantity;
@@ -23,6 +25,7 @@ class InvoiceLine {
   double get total => discountedAmount + taxAmount;
 
   InvoiceLine copyWith({
+    String? id,
     String? description,
     String? hsnCode,
     double? quantity,
@@ -32,6 +35,7 @@ class InvoiceLine {
     double? taxRate,
   }) {
     return InvoiceLine(
+      id: id ?? this.id,
       description: description ?? this.description,
       hsnCode: hsnCode ?? this.hsnCode,
       quantity: quantity ?? this.quantity,
@@ -43,6 +47,7 @@ class InvoiceLine {
   }
 
   Map<String, dynamic> toJson() => {
+    'id': id,
     'description': description,
     'hsnCode': hsnCode,
     'quantity': quantity,
@@ -53,6 +58,7 @@ class InvoiceLine {
   };
 
   factory InvoiceLine.fromJson(Map<String, dynamic> map) => InvoiceLine(
+    id: map['id'] as String? ?? '',
     description: map['description'] as String? ?? '',
     hsnCode: map['hsnCode'] as String? ?? '',
     quantity: (map['quantity'] as num?)?.toDouble() ?? 1.0,

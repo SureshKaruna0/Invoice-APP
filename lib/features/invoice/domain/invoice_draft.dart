@@ -9,6 +9,7 @@ class InvoiceDraft {
     required this.invoiceNumber,
     required this.invoiceDate,
     required this.lines,
+    this.businessLogoPath,
     this.businessPhone = '',
     this.businessEmail = '',
     this.businessGstin = '',
@@ -22,9 +23,10 @@ class InvoiceDraft {
     this.bankIfsc = '',
     this.upiId = '',
     this.notes = '',
-    this.terms = '1. Goods once sold will not be accepted back or exchanged.\n2. Payment is due within 15 days of invoice date.',
+    this.terms = '',
   });
 
+  final String? businessLogoPath;
   final String businessName;
   final String businessAddress;
   final String businessPhone;
@@ -67,6 +69,7 @@ class InvoiceDraft {
   double get total => lines.fold(0.0, (sum, line) => sum + line.total);
 
   InvoiceDraft copyWith({
+    String? businessLogoPath,
     String? businessName,
     String? businessAddress,
     String? businessPhone,
@@ -90,6 +93,7 @@ class InvoiceDraft {
     String? terms,
   }) {
     return InvoiceDraft(
+      businessLogoPath: businessLogoPath ?? this.businessLogoPath,
       businessName: businessName ?? this.businessName,
       businessAddress: businessAddress ?? this.businessAddress,
       businessPhone: businessPhone ?? this.businessPhone,
