@@ -292,9 +292,16 @@ class InvoicePdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       _pdfMetaRow('Invoice No:', invoice.invoiceNumber),
+                      _pdfMetaRow('Invoice Type:', '${invoice.invoiceType} Invoice'),
                       _pdfMetaRow('Invoice Date:', invoiceDateStr),
-                      _pdfMetaRow('Due Date:', dueDateStr),
-                      _pdfMetaRow('Payment Mode:', invoice.paymentMode),
+                      if (invoice.invoiceType == 'Cash') ...[
+                        _pdfMetaRow('Payment Mode:', invoice.paymentMode),
+                        if (invoice.paymentDate != null)
+                          _pdfMetaRow('Paid On:', dateFormat.format(invoice.paymentDate!)),
+                      ] else ...[
+                        _pdfMetaRow('Payment Terms:', invoice.paymentTerms),
+                        _pdfMetaRow('Due Date:', dueDateStr),
+                      ],
                       _pdfMetaRow('Payment Status:', invoice.paymentStatus),
                     ],
                   ),

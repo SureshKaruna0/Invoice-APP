@@ -62,6 +62,18 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
     super.dispose();
   }
 
+  void _syncFromState(InvoiceFormState state) {
+    if (_name.text != state.businessName) _name.text = state.businessName;
+    if (_phone.text != state.businessPhone) _phone.text = state.businessPhone;
+    if (_email.text != state.businessEmail) _email.text = state.businessEmail;
+    if (_gstin.text != state.businessGstin) _gstin.text = state.businessGstin;
+    if (_address.text != state.businessAddress) _address.text = state.businessAddress;
+    if (_bankName.text != state.bankName) _bankName.text = state.bankName;
+    if (_bankAccount.text != state.bankAccount) _bankAccount.text = state.bankAccount;
+    if (_bankIfsc.text != state.bankIfsc) _bankIfsc.text = state.bankIfsc;
+    if (_upiId.text != state.upiId) _upiId.text = state.upiId;
+  }
+
   void _saveData() {
     ref.read(invoiceFormProvider.notifier).updateBusinessDetails(
       name: _name.text.trim(),
@@ -110,6 +122,15 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<InvoiceFormState>(invoiceFormProvider, (prev, next) {
+      if (prev?.businessName != next.businessName ||
+          prev?.businessPhone != next.businessPhone ||
+          prev?.bankName != next.bankName ||
+          prev?.bankAccount != next.bankAccount) {
+        _syncFromState(next);
+      }
+    });
+
     final state = ref.watch(invoiceFormProvider);
     final logoPath = state.businessLogoPath;
     final hasLogo = logoPath != null && logoPath.isNotEmpty && File(logoPath).existsSync();
@@ -389,49 +410,50 @@ class _Step1BusinessDetailsState extends ConsumerState<Step1BusinessDetails> {
                         ),
                         const SizedBox(height: 14),
 
-                        TextFormField(
-                          controller: _bankName,
-                          onChanged: (_) => _saveData(),
-                          decoration: InputDecoration(
-                            labelText: 'Bank Name',
-                            hintText: 'Enter bank name',
-                            prefixIcon: const Icon(Icons.account_balance),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
                         Row(
                           children: [
                             Expanded(
-                              flex: 6,
+                              flex: 5,
                               child: TextFormField(
-                                controller: _bankAccount,
+                                controller: _bankName,
                                 onChanged: (_) => _saveData(),
-                                keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
-                                  labelText: 'Account Number',
-                                  hintText: 'Enter bank account number',
-                                  prefixIcon: const Icon(Icons.pin),
+                                  labelText: 'Bank Name',
+                                  hintText: 'Enter bank name',
+                                  prefixIcon: const Icon(Icons.account_balance_outlined),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              flex: 4,
+                              flex: 5,
                               child: TextFormField(
-                                controller: _bankIfsc,
+                                controller: _bankAccount,
                                 onChanged: (_) => _saveData(),
-                                textCapitalization: TextCapitalization.characters,
+                                keyboardType: TextInputType.number,
                                 decoration: InputDecoration(
-                                  labelText: 'IFSC Code',
-                                  hintText: 'Enter IFSC code',
+                                  labelText: 'Account Number',
+                                  hintText: 'Enter account number',
+                                  prefixIcon: const Icon(Icons.pin),
                                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                                 ),
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        TextFormField(
+                          controller: _bankIfsc,
+                          onChanged: (_) => _saveData(),
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: InputDecoration(
+                            labelText: 'Bank IFSC Code',
+                            hintText: 'Enter 11-digit IFSC code',
+                            prefixIcon: const Icon(Icons.badge_outlined),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ],
                     ),

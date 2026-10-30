@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../domain/customer_model.dart';
 import '../domain/invoice_draft.dart';
 import '../domain/invoice_line.dart';
@@ -30,6 +31,10 @@ class InvoiceFormState {
     this.invoiceNumber = 'INV-001',
     this.invoiceDate,
     this.dueDate,
+    this.invoiceType = 'Credit', // 'Cash' | 'Credit'
+    this.paymentTerms = 'Net 15 Days', // 'Due on Receipt', 'Net 7 Days', 'Net 15 Days', 'Net 30 Days', 'Custom'
+    this.paymentDate,
+    this.paymentTime = '',
     this.paymentStatus = 'Pending',
     this.paymentMode = 'UPI / Cash',
     this.notes = '',
@@ -75,6 +80,10 @@ class InvoiceFormState {
   final String invoiceNumber;
   final DateTime? invoiceDate;
   final DateTime? dueDate;
+  final String invoiceType;
+  final String paymentTerms;
+  final DateTime? paymentDate;
+  final String paymentTime;
   final String paymentStatus;
   final String paymentMode;
 
@@ -120,6 +129,10 @@ class InvoiceFormState {
         invoiceNumber: invoiceNumber,
         invoiceDate: activeInvoiceDate,
         dueDate: dueDate,
+        invoiceType: invoiceType,
+        paymentTerms: paymentTerms,
+        paymentDate: paymentDate,
+        paymentTime: paymentTime,
         paymentStatus: paymentStatus,
         paymentMode: paymentMode,
         bankName: bankName,
@@ -156,6 +169,10 @@ class InvoiceFormState {
     String? invoiceNumber,
     DateTime? invoiceDate,
     DateTime? dueDate,
+    String? invoiceType,
+    String? paymentTerms,
+    DateTime? paymentDate,
+    String? paymentTime,
     String? paymentStatus,
     String? paymentMode,
     String? notes,
@@ -193,6 +210,10 @@ class InvoiceFormState {
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       invoiceDate: invoiceDate ?? this.invoiceDate,
       dueDate: dueDate ?? this.dueDate,
+      invoiceType: invoiceType ?? this.invoiceType,
+      paymentTerms: paymentTerms ?? this.paymentTerms,
+      paymentDate: paymentDate ?? this.paymentDate,
+      paymentTime: paymentTime ?? this.paymentTime,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       paymentMode: paymentMode ?? this.paymentMode,
       notes: notes ?? this.notes,
@@ -324,6 +345,10 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
     String? number,
     DateTime? date,
     DateTime? dueDate,
+    String? invoiceType,
+    String? paymentTerms,
+    DateTime? paymentDate,
+    String? paymentTime,
     String? customerName,
     String? customerAddress,
     String? customerPhone,
@@ -335,12 +360,75 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       invoiceNumber: number,
       invoiceDate: date,
       dueDate: dueDate,
+      invoiceType: invoiceType,
+      paymentTerms: paymentTerms,
+      paymentDate: paymentDate,
+      paymentTime: paymentTime,
       customerName: customerName,
       customerAddress: customerAddress,
       customerPhone: customerPhone,
       customerGstin: customerGstin,
       paymentStatus: paymentStatus,
       paymentMode: paymentMode,
+    );
+  }
+
+  /// Sets invoice type to 'Cash' or 'Credit' and configures corresponding payment defaults
+  void setInvoiceType(String type) {
+    if (type == 'Cash') {
+      final now = DateTime.now();
+      state = state.copyWith(
+        invoiceType: 'Cash',
+        paymentStatus: 'Paid',
+        paymentDate: state.activeInvoiceDate,
+        paymentTime: state.paymentTime.isNotEmpty
+            ? state.paymentTime
+            : DateFormat('hh:mm a').format(now),
+        paymentMode: state.paymentMode.isNotEmpty ? state.paymentMode : 'Cash',
+      );
+    } else {
+      final terms = state.paymentTerms.isNotEmpty ? state.paymentTerms : 'Net 15 Days';
+      state = state.copyWith(
+        invoiceType: 'Credit',
+        paymentStatus: 'Pending',
+        paymentTerms: terms,
+        dueDate: calculateDueDate(state.activeInvoiceDate, terms),
+      );
+    }
+  }
+
+  /// Updates payment terms ('Due on Receipt', 'Net 7 Days', etc.) and recalculates due date
+  void setPaymentTerms(String terms) {
+    state = state.copyWith(
+      paymentTerms: terms,
+      dueDate: calculateDueDate(state.activeInvoiceDate, terms),
+    );
+  }
+
+  /// Calculates due date from invoice date and standard payment terms
+  static DateTime calculateDueDate(DateTime invoiceDate, String terms) {
+    switch (terms) {
+      case 'Due on Receipt':
+        return invoiceDate;
+      case 'Net 7 Days':
+      case '7 Days':
+        return invoiceDate.add(const Duration(days: 7));
+      case 'Net 15 Days':
+      case '15 Days':
+        return invoiceDate.add(const Duration(days: 15));
+      case 'Net 30 Days':
+      case '30 Days':
+        return invoiceDate.add(const Duration(days: 30));
+      case 'Custom':
+      default:
+        return invoiceDate.add(const Duration(days: 15));
+    }
+  }
+
+  void setPaymentDateTime({DateTime? date, String? time}) {
+    state = state.copyWith(
+      paymentDate: date ?? state.paymentDate,
+      paymentTime: time ?? state.paymentTime,
     );
   }
 
@@ -516,6 +604,10 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       customerGstin: '',
       invoiceDate: DateTime.now(),
       dueDate: DateTime.now().add(const Duration(days: 15)),
+      invoiceType: 'Credit',
+      paymentTerms: 'Net 15 Days',
+      paymentDate: null,
+      paymentTime: '',
       paymentStatus: 'Pending',
       currentStep: 0,
       lines: [
@@ -547,6 +639,10 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       invoiceNumber: draft.invoiceNumber,
       invoiceDate: draft.invoiceDate,
       dueDate: draft.dueDate,
+      invoiceType: draft.invoiceType,
+      paymentTerms: draft.paymentTerms,
+      paymentDate: draft.paymentDate,
+      paymentTime: draft.paymentTime,
       paymentStatus: draft.paymentStatus,
       paymentMode: draft.paymentMode,
       bankName: draft.bankName,
@@ -577,6 +673,10 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       customerGstin: '',
       invoiceDate: DateTime.now(),
       dueDate: DateTime.now().add(const Duration(days: 15)),
+      invoiceType: 'Credit',
+      paymentTerms: 'Net 15 Days',
+      paymentDate: null,
+      paymentTime: '',
       paymentStatus: 'Pending',
       currentStep: 0,
       lines: const [

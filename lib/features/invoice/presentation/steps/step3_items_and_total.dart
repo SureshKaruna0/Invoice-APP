@@ -8,6 +8,7 @@ import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../../application/invoice_form_controller.dart';
 import '../../application/number_to_words.dart';
 import '../../domain/invoice_line.dart';
+import '../widgets/invoice_preview_dialog.dart';
 import '../widgets/invoice_share_bottom_sheet.dart';
 import '../widgets/product_catalog_modal.dart';
 
@@ -70,6 +71,38 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
     InvoiceShareBottomSheet.show(
       context,
       draft,
+      onShareCompleted: () {
+        ref.read(invoiceFormProvider.notifier).completeAndResetInvoice();
+        if (widget.onResetToFirstStep != null) {
+          widget.onResetToFirstStep!();
+        } else {
+          widget.onBack();
+        }
+      },
+    );
+  }
+
+  void _onOpenPreview() {
+    final state = ref.read(invoiceFormProvider);
+    if (state.lines.isEmpty) {
+      _showError('Please add at least one item to preview.');
+      return;
+    }
+    if (state.lines.any((item) => item.description.trim().isEmpty)) {
+      _showError('Please enter a description / name for every item.');
+      return;
+    }
+
+    _saveNotesAndTerms();
+
+    final draft = ref.read(invoiceFormProvider).toDraft();
+
+    InvoicePreviewDialog.show(
+      context,
+      draft,
+      onEdit: () {
+        // User returned to edit form
+      },
       onShareCompleted: () {
         ref.read(invoiceFormProvider.notifier).completeAndResetInvoice();
         if (widget.onResetToFirstStep != null) {
@@ -845,9 +878,9 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
               Row(
                 children: [
                   Expanded(
-                    flex: 4,
+                    flex: 3,
                     child: SizedBox(
-                      height: 56,
+                      height: 54,
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           shape: RoundedRectangleBorder(
@@ -859,34 +892,56 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                           widget.onBack();
                         },
                         icon: const Icon(Icons.arrow_back_rounded,
-                            color: AppColors.black2),
+                            color: AppColors.black2, size: 18),
                         label: const Text('Back',
-                            style: TextStyle(color: AppColors.black2)),
+                            style: TextStyle(color: AppColors.black2, fontSize: 13.5)),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
-                    flex: 6,
+                    flex: 4,
                     child: SizedBox(
-                      height: 56,
+                      height: 54,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.blue1,
+                          side: const BorderSide(color: AppColors.blue1, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: _onOpenPreview,
+                        icon: const Icon(Icons.visibility_rounded, size: 18),
+                        label: const Text(
+                          'Preview',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 5,
+                    child: SizedBox(
+                      height: 54,
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.red1,
                           foregroundColor: AppColors.white1,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
-                          elevation: 3,
-                          shadowColor: AppColors.red1.withValues(alpha: 0.4),
+                          elevation: 2,
                         ),
                         onPressed: _onPreviewAndExport,
-                        icon: const Icon(Icons.share_rounded, size: 20),
+                        icon: const Icon(Icons.share_rounded, size: 18),
                         label: const Text(
-                          'Preview & Export',
+                          'Export PDF',
                           style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.3),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
@@ -1097,6 +1152,7 @@ class _ItemRowCardState extends State<_ItemRowCard> {
   late final TextEditingController _descCtrl;
   late final TextEditingController _qtyCtrl;
   late final TextEditingController _rateCtrl;
+  late final TextEditingController _discCtrl;
 
   @override
   void initState() {
@@ -1115,6 +1171,13 @@ class _ItemRowCardState extends State<_ItemRowCard> {
           : (widget.line.unitPrice % 1 == 0
               ? widget.line.unitPrice.toInt().toString()
               : widget.line.unitPrice.toStringAsFixed(2)),
+    );
+    _discCtrl = TextEditingController(
+      text: widget.line.discount <= 0
+          ? ''
+          : (widget.line.discount % 1 == 0
+              ? widget.line.discount.toInt().toString()
+              : widget.line.discount.toStringAsFixed(2)),
     );
   }
 
@@ -1158,6 +1221,20 @@ class _ItemRowCardState extends State<_ItemRowCard> {
         selection: TextSelection.collapsed(offset: text.length),
       );
     }
+
+    // Sync discount only if changed externally
+    final currentDisc = double.tryParse(_discCtrl.text) ?? 0.0;
+    if (widget.line.discount != currentDisc) {
+      final text = widget.line.discount <= 0
+          ? ''
+          : (widget.line.discount % 1 == 0
+              ? widget.line.discount.toInt().toString()
+              : widget.line.discount.toStringAsFixed(2));
+      _discCtrl.value = _discCtrl.value.copyWith(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
   }
 
   @override
@@ -1165,6 +1242,7 @@ class _ItemRowCardState extends State<_ItemRowCard> {
     _descCtrl.dispose();
     _qtyCtrl.dispose();
     _rateCtrl.dispose();
+    _discCtrl.dispose();
     super.dispose();
   }
 
@@ -1203,7 +1281,7 @@ class _ItemRowCardState extends State<_ItemRowCard> {
                 Expanded(
                   child: Text(
                     widget.line.description.isEmpty
-                        ? 'New Item ${widget.index + 1}'
+                        ? 'Item ${widget.index + 1}'
                         : widget.line.description,
                     style: const TextStyle(
                         fontWeight: FontWeight.w700,
@@ -1231,7 +1309,7 @@ class _ItemRowCardState extends State<_ItemRowCard> {
               controller: _descCtrl,
               decoration: InputDecoration(
                 labelText: 'Item Name / Description *',
-                hintText: 'Enter item description',
+                hintText: 'Enter product or service description',
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 isDense: true,
@@ -1241,8 +1319,11 @@ class _ItemRowCardState extends State<_ItemRowCard> {
               },
             ),
             const SizedBox(height: 10),
+
+            // Two-Column Grid: (Qty & Rate) and (Discount & GST %)
             Row(
               children: [
+                // Qty
                 Expanded(
                   flex: 3,
                   child: TextField(
@@ -1263,6 +1344,8 @@ class _ItemRowCardState extends State<_ItemRowCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
+
+                // Rate
                 Expanded(
                   flex: 4,
                   child: TextField(
@@ -1283,6 +1366,30 @@ class _ItemRowCardState extends State<_ItemRowCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
+
+                // Discount (₹)
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: _discCtrl,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Disc (₹)',
+                      hintText: '0.00',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      isDense: true,
+                    ),
+                    onChanged: (v) {
+                      final val = double.tryParse(v) ?? 0.0;
+                      widget.onChanged(widget.line.copyWith(discount: val));
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // GST %
                 Expanded(
                   flex: 3,
                   child: DropdownButtonFormField<double>(
@@ -1306,29 +1413,45 @@ class _ItemRowCardState extends State<_ItemRowCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+
+            // Summary Footer for Line Item
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  widget.line.taxRate > 0
-                      ? 'Tax: ${widget.money.format(widget.line.taxAmount)}'
-                      : 'Tax-Free',
-                  style: const TextStyle(fontSize: 11, color: AppColors.grey4),
+                Row(
+                  children: [
+                    Text(
+                      widget.line.taxRate > 0
+                          ? 'GST: ${widget.money.format(widget.line.taxAmount)}'
+                          : 'Tax-Free',
+                      style: const TextStyle(fontSize: 11.5, color: AppColors.grey4),
+                    ),
+                    if (widget.line.discount > 0) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        'Disc: -${widget.money.format(widget.line.discount)}',
+                        style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.red1,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ],
                 ),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.grey10,
+                    color: AppColors.blue8,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Total: ${widget.money.format(widget.line.total)}',
+                    'Amount: ${widget.money.format(widget.line.total)}',
                     style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
-                        color: AppColors.black2),
+                        color: AppColors.blue1),
                   ),
                 ),
               ],

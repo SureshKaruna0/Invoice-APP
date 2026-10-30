@@ -49,9 +49,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
         builder: (_) => InvoiceDetailsScreen(
           invoice: invoice,
           onEditInvoice: () {
+            ref.read(invoiceFormProvider.notifier).loadInvoice(invoice);
             setState(() {
               _currentTabIndex = 1;
-              _wizardStep = 2;
+              _wizardStep = 1; // Open Step 2: Invoice & Customer details for editing
             });
           },
           onInvoiceDeleted: () {

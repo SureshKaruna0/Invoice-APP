@@ -16,6 +16,10 @@ class InvoiceDraft {
     this.customerPhone = '',
     this.customerGstin = '',
     this.dueDate,
+    this.invoiceType = 'Credit', // 'Cash' | 'Credit'
+    this.paymentTerms = 'Net 15 Days', // 'Due on Receipt', 'Net 7 Days', 'Net 15 Days', 'Net 30 Days', 'Custom'
+    this.paymentDate,
+    this.paymentTime = '',
     this.paymentStatus = 'Pending',
     this.paymentMode = 'UPI / Cash',
     this.bankName = '',
@@ -47,6 +51,10 @@ class InvoiceDraft {
   final String invoiceNumber;
   final DateTime invoiceDate;
   final DateTime? dueDate;
+  final String invoiceType;
+  final String paymentTerms;
+  final DateTime? paymentDate;
+  final String paymentTime;
   final String paymentStatus;
   final String paymentMode;
 
@@ -100,6 +108,10 @@ class InvoiceDraft {
     String? invoiceNumber,
     DateTime? invoiceDate,
     DateTime? dueDate,
+    String? invoiceType,
+    String? paymentTerms,
+    DateTime? paymentDate,
+    String? paymentTime,
     String? paymentStatus,
     String? paymentMode,
     String? bankName,
@@ -130,6 +142,10 @@ class InvoiceDraft {
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
       invoiceDate: invoiceDate ?? this.invoiceDate,
       dueDate: dueDate ?? this.dueDate,
+      invoiceType: invoiceType ?? this.invoiceType,
+      paymentTerms: paymentTerms ?? this.paymentTerms,
+      paymentDate: paymentDate ?? this.paymentDate,
+      paymentTime: paymentTime ?? this.paymentTime,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       paymentMode: paymentMode ?? this.paymentMode,
       bankName: bankName ?? this.bankName,
@@ -162,6 +178,10 @@ class InvoiceDraft {
         'invoiceNumber': invoiceNumber,
         'invoiceDate': invoiceDate.toIso8601String(),
         'dueDate': dueDate?.toIso8601String(),
+        'invoiceType': invoiceType,
+        'paymentTerms': paymentTerms,
+        'paymentDate': paymentDate?.toIso8601String(),
+        'paymentTime': paymentTime,
         'paymentStatus': paymentStatus,
         'paymentMode': paymentMode,
         'bankName': bankName,
@@ -197,6 +217,12 @@ class InvoiceDraft {
         dueDate: map['dueDate'] != null
             ? DateTime.tryParse(map['dueDate'] as String)
             : null,
+        invoiceType: map['invoiceType'] as String? ?? 'Credit',
+        paymentTerms: map['paymentTerms'] as String? ?? 'Net 15 Days',
+        paymentDate: map['paymentDate'] != null
+            ? DateTime.tryParse(map['paymentDate'] as String)
+            : null,
+        paymentTime: map['paymentTime'] as String? ?? '',
         paymentStatus: map['paymentStatus'] as String? ?? 'Pending',
         paymentMode: map['paymentMode'] as String? ?? 'UPI / Cash',
         bankName: map['bankName'] as String? ?? '',

@@ -144,5 +144,64 @@ void main() {
       expect(draft.watermarkText, 'PAID');
       expect(draft.receiptImagePath, '/tmp/test_receipt.jpg');
     });
+
+    test('controller dynamically handles Cash and Credit invoice type switching', () {
+      final controller = InvoiceFormController();
+      final baseDate = DateTime(2026, 10, 30);
+      controller.updateInvoiceDetails(date: baseDate);
+
+      // Switch to Cash Invoice
+      controller.setInvoiceType('Cash');
+      expect(controller.state.invoiceType, 'Cash');
+      expect(controller.state.paymentStatus, 'Paid');
+      expect(controller.state.paymentDate, isNotNull);
+      expect(controller.state.paymentTime.isNotEmpty, isTrue);
+
+      // Switch to Credit Invoice
+      controller.setInvoiceType('Credit');
+      expect(controller.state.invoiceType, 'Credit');
+      expect(controller.state.paymentStatus, 'Pending');
+      expect(controller.state.paymentTerms, 'Net 15 Days');
+
+      // Due date calculation for payment terms
+      final due7 = InvoiceFormController.calculateDueDate(baseDate, 'Net 7 Days');
+      expect(due7, baseDate.add(const Duration(days: 7)));
+
+      final due30 = InvoiceFormController.calculateDueDate(baseDate, 'Net 30 Days');
+      expect(due30, baseDate.add(const Duration(days: 30)));
+
+      final dueReceipt = InvoiceFormController.calculateDueDate(baseDate, 'Due on Receipt');
+      expect(dueReceipt, baseDate);
+    });
+
+    test('InvoiceDraft JSON serialization supports Cash and Credit invoice fields', () {
+      final draft = InvoiceDraft(
+        businessName: 'Sharma Mart',
+        businessAddress: 'Bangalore',
+        customerName: 'Gupta Bros',
+        customerAddress: 'Delhi',
+        invoiceNumber: 'INV-2026-999',
+        invoiceDate: DateTime(2026, 10, 30),
+        invoiceType: 'Cash',
+        paymentTerms: 'Due on Receipt',
+        paymentStatus: 'Paid',
+        paymentMode: 'UPI',
+        paymentDate: DateTime(2026, 10, 30),
+        paymentTime: '04:15 PM',
+        lines: const [
+          InvoiceLine(description: 'Service Fee', quantity: 1, unitPrice: 1500, discount: 100, taxRate: 18),
+        ],
+      );
+
+      final json = draft.toJson();
+      final restored = InvoiceDraft.fromJson(json);
+
+      expect(restored.invoiceType, 'Cash');
+      expect(restored.paymentTerms, 'Due on Receipt');
+      expect(restored.paymentStatus, 'Paid');
+      expect(restored.paymentMode, 'UPI');
+      expect(restored.paymentTime, '04:15 PM');
+      expect(restored.total, draft.total);
+    });
   });
 }
