@@ -1,6 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../domain/customer_model.dart';
 import '../domain/invoice_draft.dart';
 import '../domain/invoice_line.dart';
+import '../domain/ocr_extracted_invoice.dart';
+import '../domain/product_model.dart';
+import 'invoice_storage_service.dart';
 
 final invoiceFormProvider =
     StateNotifierProvider<InvoiceFormController, InvoiceFormState>(
@@ -40,6 +44,15 @@ class InvoiceFormState {
       ),
     ],
     this.savedInvoices = const [],
+    this.savedCustomers = const [],
+    this.savedProducts = const [],
+    this.receiptImagePath,
+    this.includeReceiptInPdf = true,
+    this.watermarkType = 'none', // 'none' | 'text' | 'logo'
+    this.watermarkText = 'PAID',
+    this.watermarkOpacity = 0.12,
+    this.watermarkPlacement = 'diagonal', // 'diagonal' | 'center'
+    this.isLoading = false,
   });
 
   final String? businessLogoPath;
@@ -70,6 +83,18 @@ class InvoiceFormState {
   final int currentStep; // 0: Business, 1: Invoice & Customer, 2: Items & Total
   final List<InvoiceLine> lines;
   final List<InvoiceDraft> savedInvoices;
+  final List<CustomerModel> savedCustomers;
+  final List<ProductModel> savedProducts;
+
+  // Smart Receipt Attachment & Watermark
+  final String? receiptImagePath;
+  final bool includeReceiptInPdf;
+  final String watermarkType;
+  final String watermarkText;
+  final double watermarkOpacity;
+  final String watermarkPlacement;
+
+  final bool isLoading;
 
   DateTime get activeInvoiceDate => invoiceDate ?? DateTime.now();
 
@@ -104,6 +129,12 @@ class InvoiceFormState {
         lines: lines,
         notes: notes,
         terms: terms,
+        receiptImagePath: receiptImagePath,
+        includeReceiptInPdf: includeReceiptInPdf,
+        watermarkType: watermarkType,
+        watermarkText: watermarkText,
+        watermarkOpacity: watermarkOpacity,
+        watermarkPlacement: watermarkPlacement,
       );
 
   InvoiceFormState copyWith({
@@ -132,6 +163,16 @@ class InvoiceFormState {
     int? currentStep,
     List<InvoiceLine>? lines,
     List<InvoiceDraft>? savedInvoices,
+    List<CustomerModel>? savedCustomers,
+    List<ProductModel>? savedProducts,
+    String? receiptImagePath,
+    bool clearReceiptImage = false,
+    bool? includeReceiptInPdf,
+    String? watermarkType,
+    String? watermarkText,
+    double? watermarkOpacity,
+    String? watermarkPlacement,
+    bool? isLoading,
   }) {
     return InvoiceFormState(
       businessLogoPath:
@@ -159,6 +200,17 @@ class InvoiceFormState {
       currentStep: currentStep ?? this.currentStep,
       lines: lines ?? this.lines,
       savedInvoices: savedInvoices ?? this.savedInvoices,
+      savedCustomers: savedCustomers ?? this.savedCustomers,
+      savedProducts: savedProducts ?? this.savedProducts,
+      receiptImagePath: clearReceiptImage
+          ? null
+          : (receiptImagePath ?? this.receiptImagePath),
+      includeReceiptInPdf: includeReceiptInPdf ?? this.includeReceiptInPdf,
+      watermarkType: watermarkType ?? this.watermarkType,
+      watermarkText: watermarkText ?? this.watermarkText,
+      watermarkOpacity: watermarkOpacity ?? this.watermarkOpacity,
+      watermarkPlacement: watermarkPlacement ?? this.watermarkPlacement,
+      isLoading: isLoading ?? this.isLoading,
     );
   }
 }
@@ -168,7 +220,36 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       : super(InvoiceFormState(
           invoiceDate: DateTime.now(),
           dueDate: DateTime.now().add(const Duration(days: 15)),
-        ));
+        )) {
+    loadPersistedData();
+  }
+
+  /// Automatically load saved invoices, customers, products and profile on boot
+  Future<void> loadPersistedData() async {
+    try {
+      final invoices = await InvoiceStorageService.loadInvoices();
+      final customers = await InvoiceStorageService.loadCustomers();
+      final products = await InvoiceStorageService.loadProducts();
+      final profile = await InvoiceStorageService.loadBusinessProfile();
+
+      state = state.copyWith(
+        savedInvoices: invoices,
+        savedCustomers: customers,
+        savedProducts: products,
+        businessName: profile?['name'] as String? ?? state.businessName,
+        businessAddress:
+            profile?['address'] as String? ?? state.businessAddress,
+        businessPhone: profile?['phone'] as String? ?? state.businessPhone,
+        businessEmail: profile?['email'] as String? ?? state.businessEmail,
+        businessGstin: profile?['gstin'] as String? ?? state.businessGstin,
+        bankName: profile?['bankName'] as String? ?? state.bankName,
+        bankAccount: profile?['bankAccount'] as String? ?? state.bankAccount,
+        bankIfsc: profile?['bankIfsc'] as String? ?? state.bankIfsc,
+        upiId: profile?['upiId'] as String? ?? state.upiId,
+        businessLogoPath: profile?['logoPath'] as String? ?? state.businessLogoPath,
+      );
+    } catch (_) {}
+  }
 
   void setStep(int step) {
     if (step >= 0 && step <= 2) {
@@ -194,6 +275,7 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
     } else {
       state = state.copyWith(businessLogoPath: path);
     }
+    _persistBusinessProfile();
   }
 
   void updateBusinessDetails({
@@ -220,6 +302,22 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       bankIfsc: bankIfsc,
       upiId: upiId,
     );
+    _persistBusinessProfile();
+  }
+
+  void _persistBusinessProfile() {
+    InvoiceStorageService.saveBusinessProfile({
+      'name': state.businessName,
+      'address': state.businessAddress,
+      'phone': state.businessPhone,
+      'email': state.businessEmail,
+      'gstin': state.businessGstin,
+      'bankName': state.bankName,
+      'bankAccount': state.bankAccount,
+      'bankIfsc': state.bankIfsc,
+      'upiId': state.upiId,
+      'logoPath': state.businessLogoPath,
+    });
   }
 
   void updateInvoiceDetails({
@@ -250,6 +348,32 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
     state = state.copyWith(
       notes: notes,
       terms: terms,
+    );
+  }
+
+  void setReceiptImage(String? path) {
+    if (path == null) {
+      state = state.copyWith(clearReceiptImage: true);
+    } else {
+      state = state.copyWith(receiptImagePath: path);
+    }
+  }
+
+  void setIncludeReceiptInPdf(bool value) {
+    state = state.copyWith(includeReceiptInPdf: value);
+  }
+
+  void setWatermarkSettings({
+    String? type,
+    String? text,
+    double? opacity,
+    String? placement,
+  }) {
+    state = state.copyWith(
+      watermarkType: type,
+      watermarkText: text,
+      watermarkOpacity: opacity,
+      watermarkPlacement: placement,
     );
   }
 
@@ -286,6 +410,66 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
     state = state.copyWith(lines: updated);
   }
 
+  /// Populate invoice directly from OCR extraction with attached original receipt
+  void loadFromOcr(OcrExtractedInvoice ocr) {
+    state = state.copyWith(
+      customerName: ocr.vendorName.value.isNotEmpty
+          ? ocr.vendorName.value
+          : state.customerName,
+      customerGstin:
+          ocr.gstin.value.isNotEmpty ? ocr.gstin.value : state.customerGstin,
+      invoiceNumber: ocr.invoiceNumber.value.isNotEmpty
+          ? ocr.invoiceNumber.value
+          : state.invoiceNumber,
+      invoiceDate: ocr.date.value ?? state.invoiceDate,
+      paymentMode: ocr.paymentMode.value.isNotEmpty
+          ? ocr.paymentMode.value
+          : state.paymentMode,
+      lines: ocr.lines.isNotEmpty ? ocr.lines : state.lines,
+      receiptImagePath: ocr.imagePath,
+      includeReceiptInPdf: true,
+      currentStep: 2, // Jump directly to Items & Total for verification
+    );
+  }
+
+  /// Add / update Customer in directory
+  void saveCustomer(CustomerModel customer) {
+    final list = [...state.savedCustomers];
+    final idx = list.indexWhere((c) => c.id == customer.id);
+    if (idx >= 0) {
+      list[idx] = customer;
+    } else {
+      list.add(customer);
+    }
+    state = state.copyWith(savedCustomers: list);
+    InvoiceStorageService.saveCustomers(list);
+  }
+
+  void deleteCustomer(String id) {
+    final list = state.savedCustomers.where((c) => c.id != id).toList();
+    state = state.copyWith(savedCustomers: list);
+    InvoiceStorageService.saveCustomers(list);
+  }
+
+  /// Add / update Product in catalog
+  void saveProduct(ProductModel product) {
+    final list = [...state.savedProducts];
+    final idx = list.indexWhere((p) => p.id == product.id);
+    if (idx >= 0) {
+      list[idx] = product;
+    } else {
+      list.add(product);
+    }
+    state = state.copyWith(savedProducts: list);
+    InvoiceStorageService.saveProducts(list);
+  }
+
+  void deleteProduct(String id) {
+    final list = state.savedProducts.where((p) => p.id != id).toList();
+    state = state.copyWith(savedProducts: list);
+    InvoiceStorageService.saveProducts(list);
+  }
+
   void saveCurrentInvoiceToHistory() {
     final draft = state.toDraft();
     final existingIndex = state.savedInvoices
@@ -298,6 +482,26 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       updated = [draft, ...state.savedInvoices];
     }
     state = state.copyWith(savedInvoices: updated);
+    InvoiceStorageService.saveInvoices(updated);
+  }
+
+  void updateInvoicePaymentStatus(String invoiceNumber, String newStatus) {
+    final updated = state.savedInvoices.map((inv) {
+      if (inv.invoiceNumber == invoiceNumber) {
+        return inv.copyWith(paymentStatus: newStatus);
+      }
+      return inv;
+    }).toList();
+    state = state.copyWith(savedInvoices: updated);
+    InvoiceStorageService.saveInvoices(updated);
+  }
+
+  void deleteInvoice(String invoiceNumber) {
+    final updated = state.savedInvoices
+        .where((inv) => inv.invoiceNumber != invoiceNumber)
+        .toList();
+    state = state.copyWith(savedInvoices: updated);
+    InvoiceStorageService.saveInvoices(updated);
   }
 
   void completeAndResetInvoice() {
@@ -324,6 +528,7 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       ],
       notes: '',
       terms: '',
+      clearReceiptImage: true,
     );
   }
 
@@ -351,7 +556,13 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       lines: draft.lines,
       notes: draft.notes,
       terms: draft.terms,
-      currentStep: 0,
+      receiptImagePath: draft.receiptImagePath,
+      includeReceiptInPdf: draft.includeReceiptInPdf,
+      watermarkType: draft.watermarkType,
+      watermarkText: draft.watermarkText,
+      watermarkOpacity: draft.watermarkOpacity,
+      watermarkPlacement: draft.watermarkPlacement,
+      currentStep: 2,
     );
   }
 
@@ -373,6 +584,7 @@ class InvoiceFormController extends StateNotifier<InvoiceFormState> {
       ],
       notes: '',
       terms: '',
+      clearReceiptImage: true,
     );
   }
 }

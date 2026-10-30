@@ -139,13 +139,25 @@ class _InvoiceHistoryTabState extends ConsumerState<InvoiceHistoryTab> {
                                       color: AppColors.blue8,
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: Text(
-                                      inv.invoiceNumber,
-                                      style: const TextStyle(
-                                        color: AppColors.blue1,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12,
-                                      ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          inv.invoiceNumber,
+                                          style: const TextStyle(
+                                            color: AppColors.blue1,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (inv.receiptImagePath != null &&
+                                            inv.receiptImagePath!.isNotEmpty) ...[
+                                          const SizedBox(width: 4),
+                                          const Icon(Icons.attachment_rounded,
+                                              size: 13,
+                                              color: AppColors.blue1),
+                                        ],
+                                      ],
                                     ),
                                   ),
                                   Container(

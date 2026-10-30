@@ -4,9 +4,14 @@ import 'app_colors.dart';
 import 'app_router.dart';
 import 'app_snackbar.dart';
 
-class QuickInvoiceApp extends StatelessWidget {
+class QuickInvoiceApp extends StatefulWidget {
   const QuickInvoiceApp({super.key});
 
+  @override
+  State<QuickInvoiceApp> createState() => _QuickInvoiceAppState();
+}
+
+class _QuickInvoiceAppState extends State<QuickInvoiceApp> {
   @override
   Widget build(BuildContext context) {
     return ScreenUtilInit(

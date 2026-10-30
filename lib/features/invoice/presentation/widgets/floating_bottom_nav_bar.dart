@@ -14,37 +14,37 @@ class EasyBillFloatingNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 5 items corresponding to the user's workflow and navigation:
-    // 0: Business Info
-    // 1: Invoice & Customer
-    // 2: Items & Total
-    // 3: Saved History
-    // 4: Profile / Settings
+    // 5 items corresponding to modern financial app workflow:
+    // 0: Dashboard (Financial KPIs & Recent Invoices)
+    // 1: Create / Edit Wizard (Step 1, 2, 3)
+    // 2: Smart Receipt Scan (AI OCR & Original Receipt Attachment)
+    // 3: Invoices History (Filter, Search, Details)
+    // 4: Settings & Profile (Business details, Watermark, Catalog, Indian Rupee)
     final items = [
       _NavItem(
-        icon: Icons.chat_bubble_outline_rounded,
-        activeIcon: Icons.chat_bubble_rounded,
-        label: 'Business',
+        icon: Icons.dashboard_outlined,
+        activeIcon: Icons.dashboard_rounded,
+        label: 'Dashboard',
       ),
       _NavItem(
-        icon: Icons.search_rounded,
-        activeIcon: Icons.search_rounded,
-        label: 'Search',
+        icon: Icons.add_circle_outline_rounded,
+        activeIcon: Icons.add_circle_rounded,
+        label: 'Create',
       ),
       _NavItem(
-        icon: Icons.access_time_rounded,
-        activeIcon: Icons.access_time_filled_rounded,
-        label: 'Items & Total',
+        icon: Icons.document_scanner_outlined,
+        activeIcon: Icons.document_scanner_rounded,
+        label: 'Scan OCR',
       ),
       _NavItem(
-        icon: Icons.notifications_none_rounded,
-        activeIcon: Icons.notifications_rounded,
+        icon: Icons.receipt_long_outlined,
+        activeIcon: Icons.receipt_long_rounded,
         label: 'Invoices',
       ),
       _NavItem(
-        icon: Icons.person_outline_rounded,
-        activeIcon: Icons.person_rounded,
-        label: 'Profile',
+        icon: Icons.settings_outlined,
+        activeIcon: Icons.settings_rounded,
+        label: 'Settings',
       ),
     ];
 

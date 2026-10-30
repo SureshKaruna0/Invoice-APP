@@ -14,7 +14,7 @@ android {
     kotlinOptions { jvmTarget = JavaVersion.VERSION_17 }
     defaultConfig {
         applicationId "com.example.quick_invoice_maker"
-        minSdk flutter.minSdkVersion
+        minSdkVersion = flutter.minSdkVersion
         targetSdk flutter.targetSdkVersion
         versionCode 1
         versionName "1.0.0"

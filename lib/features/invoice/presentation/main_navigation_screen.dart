@@ -3,12 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
 import 'package:quick_invoice_maker/app/app_snackbar.dart';
 import '../application/invoice_form_controller.dart';
+import '../domain/invoice_draft.dart';
+import 'invoice_details_screen.dart';
+import 'smart_receipt_scan_screen.dart';
 import 'steps/step1_business_details.dart';
 import 'steps/step2_invoice_details.dart';
 import 'steps/step3_items_and_total.dart';
 import 'tabs/business_profile_tab.dart';
+import 'tabs/dashboard_tab.dart';
 import 'tabs/invoice_history_tab.dart';
+import 'widgets/customer_directory_modal.dart';
 import 'widgets/floating_bottom_nav_bar.dart';
+import 'widgets/product_catalog_modal.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   const MainNavigationScreen({
@@ -25,6 +31,7 @@ class MainNavigationScreen extends ConsumerStatefulWidget {
 
 class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   late int _currentTabIndex;
+  int _wizardStep = 0; // 0: Business, 1: Invoice & Customer, 2: Items & Total
 
   @override
   void initState() {
@@ -36,20 +43,43 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     setState(() => _currentTabIndex = index);
   }
 
+  void _openInvoiceDetails(InvoiceDraft invoice) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => InvoiceDetailsScreen(
+          invoice: invoice,
+          onEditInvoice: () {
+            setState(() {
+              _currentTabIndex = 1;
+              _wizardStep = 2;
+            });
+          },
+          onInvoiceDeleted: () {
+            setState(() {});
+          },
+        ),
+      ),
+    );
+  }
+
   String _getTabSubtitle(int index) {
     switch (index) {
       case 0:
-        return 'Step 1: Business Details';
+        return 'Financial Overview & KPIs';
       case 1:
-        return 'Step 2: Invoice & Customer';
+        return _wizardStep == 0
+            ? 'Step 1 of 3: Business Details'
+            : _wizardStep == 1
+                ? 'Step 2 of 3: Invoice & Customer'
+                : 'Step 3 of 3: Items & Grand Total';
       case 2:
-        return 'Step 3: Items & Grand Total';
+        return 'Smart Receipt AI Scanner';
       case 3:
         return 'Invoices History & Records';
       case 4:
-        return 'Business Profile & Settings';
+        return 'Settings, Watermark & Rupee';
       default:
-        return 'GST Invoice & Billing';
+        return 'GST Billing & Invoicing';
     }
   }
 
@@ -143,7 +173,10 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
               ref
                   .read(invoiceFormProvider.notifier)
                   .completeAndResetInvoice();
-              setState(() => _currentTabIndex = 0);
+              setState(() {
+                _currentTabIndex = 1;
+                _wizardStep = 0;
+              });
               AppSnackbar.showInfo('Started fresh invoice with reset fields.');
             },
             icon: const Icon(
@@ -161,35 +194,66 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
           IndexedStack(
             index: _currentTabIndex,
             children: [
-              // Screen 0: Business Details (Step 1)
-              Step1BusinessDetails(
-                onNext: () => setState(() => _currentTabIndex = 1),
-              ),
-
-              // Screen 1: Invoice Details (Step 2)
-              Step2InvoiceDetails(
-                onBack: () => setState(() => _currentTabIndex = 0),
-                onNext: () => setState(() => _currentTabIndex = 2),
-              ),
-
-              // Screen 2: Items & Total (Step 3)
-              Step3ItemsAndTotal(
-                onBack: () => setState(() => _currentTabIndex = 1),
-                onResetToFirstStep: () => setState(() => _currentTabIndex = 0),
-              ),
-
-              // Screen 3: Invoices History
-              InvoiceHistoryTab(
-                onOpenInvoice: (inv) {
-                  ref.read(invoiceFormProvider.notifier).loadInvoice(inv);
+              // Screen 0: Executive Financial Dashboard
+              DashboardTab(
+                onCreateInvoice: () {
+                  setState(() {
+                    _currentTabIndex = 1;
+                    _wizardStep = 0;
+                  });
+                },
+                onScanReceipt: () {
                   setState(() => _currentTabIndex = 2);
-                  AppSnackbar.showSuccess('Loaded ${inv.invoiceNumber} into editor.');
+                },
+                onOpenInvoice: _openInvoiceDetails,
+                onOpenInvoicesList: () {
+                  setState(() => _currentTabIndex = 3);
+                },
+                onOpenCustomers: () => CustomerDirectoryModal.show(context),
+                onOpenProducts: () => ProductCatalogModal.show(context),
+              ),
+
+              // Screen 1: Invoice Creation & Edit Wizard
+              IndexedStack(
+                index: _wizardStep,
+                children: [
+                  Step1BusinessDetails(
+                    onNext: () => setState(() => _wizardStep = 1),
+                  ),
+                  Step2InvoiceDetails(
+                    onBack: () => setState(() => _wizardStep = 0),
+                    onNext: () => setState(() => _wizardStep = 2),
+                  ),
+                  Step3ItemsAndTotal(
+                    onBack: () => setState(() => _wizardStep = 1),
+                    onResetToFirstStep: () => setState(() => _wizardStep = 0),
+                  ),
+                ],
+              ),
+
+              // Screen 2: Smart Receipt AI Scanner (Phase 3 & 4)
+              SmartReceiptScanScreen(
+                onInvoiceCreated: () {
+                  setState(() {
+                    _currentTabIndex = 1;
+                    _wizardStep = 2; // Jump to Items & Total for verification
+                  });
                 },
               ),
 
-              // Screen 4: EasyBill Profile & Settings
+              // Screen 3: Invoices History & Filter
+              InvoiceHistoryTab(
+                onOpenInvoice: _openInvoiceDetails,
+              ),
+
+              // Screen 4: Business Settings, Watermark & Profile
               BusinessProfileTab(
-                onEditBusiness: () => setState(() => _currentTabIndex = 0),
+                onEditBusiness: () {
+                  setState(() {
+                    _currentTabIndex = 1;
+                    _wizardStep = 0;
+                  });
+                },
               ),
             ],
           ),

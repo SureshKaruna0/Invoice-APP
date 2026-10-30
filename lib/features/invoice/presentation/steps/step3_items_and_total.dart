@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
 import 'package:quick_invoice_maker/app/app_snackbar.dart';
@@ -7,6 +9,7 @@ import '../../application/invoice_form_controller.dart';
 import '../../application/number_to_words.dart';
 import '../../domain/invoice_line.dart';
 import '../widgets/invoice_share_bottom_sheet.dart';
+import '../widgets/product_catalog_modal.dart';
 
 class Step3ItemsAndTotal extends ConsumerStatefulWidget {
   const Step3ItemsAndTotal({
@@ -80,6 +83,138 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
 
   void _showError(String msg) {
     AppSnackbar.showError(msg);
+  }
+
+  Future<void> _pickReceipt(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final XFile? file = await picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 88,
+      );
+      if (file != null) {
+        ref.read(invoiceFormProvider.notifier).setReceiptImage(file.path);
+        AppSnackbar.showSuccess('Original receipt image attached to invoice!');
+      }
+    } catch (e) {
+      AppSnackbar.showError('Failed to attach receipt: $e');
+    }
+  }
+
+  void _showWatermarkDialog() {
+    final state = ref.read(invoiceFormProvider);
+    String type = state.watermarkType;
+    final textCtrl = TextEditingController(text: state.watermarkText);
+    double opacity = state.watermarkOpacity;
+    String placement = state.watermarkPlacement;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: const Text('PDF Watermark Settings'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Watermark Type',
+                    style:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: ['none', 'text', 'logo'].map((t) {
+                    final sel = type == t;
+                    return ChoiceChip(
+                      label: Text(t.toUpperCase()),
+                      selected: sel,
+                      onSelected: (_) => setDlgState(() => type = t),
+                    );
+                  }).toList(),
+                ),
+                if (type == 'text') ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: textCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Watermark Text',
+                      hintText: 'e.g. PAID, ORIGINAL, DRAFT',
+                    ),
+                  ),
+                ],
+                if (type != 'none') ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Opacity',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                      Text('${(opacity * 100).toInt()}%'),
+                    ],
+                  ),
+                  Slider(
+                    value: opacity,
+                    min: 0.04,
+                    max: 0.30,
+                    divisions: 13,
+                    onChanged: (v) => setDlgState(() => opacity = v),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Placement',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Center(child: Text('Diagonal')),
+                          selected: placement == 'diagonal',
+                          onSelected: (_) =>
+                              setDlgState(() => placement = 'diagonal'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ChoiceChip(
+                          label: const Center(child: Text('Center')),
+                          selected: placement == 'center',
+                          onSelected: (_) =>
+                              setDlgState(() => placement = 'center'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                ref.read(invoiceFormProvider.notifier).setWatermarkSettings(
+                      type: type,
+                      text: textCtrl.text.trim().toUpperCase(),
+                      opacity: opacity,
+                      placement: placement,
+                    );
+                AppSnackbar.showSuccess('Watermark settings updated');
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showAddItemDialog() {
@@ -340,14 +475,40 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                         fontWeight: FontWeight.w800,
                         color: AppColors.black2),
                   ),
-                  TextButton.icon(
-                    onPressed: _showAddItemDialog,
-                    icon: const Icon(Icons.add_circle_outline_rounded,
-                        size: 18, color: AppColors.blue2),
-                    label: const Text('Add Product',
-                        style: TextStyle(
-                            color: AppColors.blue2,
-                            fontWeight: FontWeight.w700)),
+                  Row(
+                    children: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          final prod = await ProductCatalogModal.show(context);
+                          if (prod != null) {
+                            ref.read(invoiceFormProvider.notifier).addLine(
+                                  InvoiceLine(
+                                    description: prod.name,
+                                    quantity: 1,
+                                    unitPrice: prod.unitPrice,
+                                    taxRate: prod.taxRate,
+                                    unit: prod.unit,
+                                    hsnCode: prod.hsnCode,
+                                  ),
+                                );
+                            AppSnackbar.showSuccess('Added ${prod.name} from catalog');
+                          }
+                        },
+                        icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                        label: const Text('Catalog',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 4),
+                      TextButton.icon(
+                        onPressed: _showAddItemDialog,
+                        icon: const Icon(Icons.add_circle_outline_rounded,
+                            size: 18, color: AppColors.blue2),
+                        label: const Text('Add Product',
+                            style: TextStyle(
+                                color: AppColors.blue2,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -411,7 +572,220 @@ class _Step3ItemsAndTotalState extends ConsumerState<Step3ItemsAndTotal> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
+
+              // Attached Scanned Receipt Section (Phase 4)
+              Card(
+                elevation: 0,
+                color: AppColors.white1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppColors.grey11),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.attachment_rounded,
+                                  size: 20, color: AppColors.blue2),
+                              SizedBox(width: 8),
+                              Text(
+                                'Receipt Attachment',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.black2,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (state.receiptImagePath != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.green1.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Attached',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.green1,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Attach a physical bill or voucher image to this invoice.',
+                        style: TextStyle(fontSize: 12, color: AppColors.grey4),
+                      ),
+                      const SizedBox(height: 12),
+                      if (state.receiptImagePath != null &&
+                          File(state.receiptImagePath!).existsSync()) ...[
+                        Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                width: 70,
+                                height: 70,
+                                color: AppColors.grey10,
+                                child: Image.file(
+                                  File(state.receiptImagePath!),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Switch(
+                                        value: state.includeReceiptInPdf,
+                                        onChanged: (val) {
+                                          ref
+                                              .read(invoiceFormProvider.notifier)
+                                              .setIncludeReceiptInPdf(val);
+                                        },
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Expanded(
+                                        child: Text(
+                                          'Include in PDF export',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    children: [
+                                      TextButton.icon(
+                                        onPressed: () =>
+                                            _pickReceipt(ImageSource.camera),
+                                        icon: const Icon(Icons.camera_alt,
+                                            size: 14),
+                                        label: const Text('Replace',
+                                            style: TextStyle(fontSize: 11)),
+                                      ),
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          ref
+                                              .read(invoiceFormProvider.notifier)
+                                              .setReceiptImage(null);
+                                        },
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: 14, color: AppColors.red1),
+                                        label: const Text('Remove',
+                                            style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.red1)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    _pickReceipt(ImageSource.camera),
+                                icon: const Icon(Icons.camera_alt_outlined,
+                                    size: 16),
+                                label: const Text('Camera',
+                                    style: TextStyle(fontSize: 12)),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () =>
+                                    _pickReceipt(ImageSource.gallery),
+                                icon: const Icon(Icons.photo_library_outlined,
+                                    size: 16),
+                                label: const Text('Gallery',
+                                    style: TextStyle(fontSize: 12)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // PDF Watermark Card (Phase 5)
+              Card(
+                elevation: 0,
+                color: AppColors.white1,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppColors.grey11),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.branding_watermark_outlined,
+                              size: 18, color: AppColors.blue1),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'PDF Watermark',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.black2,
+                                ),
+                              ),
+                              Text(
+                                state.watermarkType == 'none'
+                                    ? 'None (Disabled)'
+                                    : '${state.watermarkType.toUpperCase()}: ${state.watermarkText} (${state.watermarkPlacement})',
+                                style: const TextStyle(
+                                    fontSize: 11, color: AppColors.grey4),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: _showWatermarkDialog,
+                        child: const Text('Customize'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
 
               // Notes & Terms Card
               Card(

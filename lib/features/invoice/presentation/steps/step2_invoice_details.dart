@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:quick_invoice_maker/app/app_colors.dart';
 import '../../application/invoice_form_controller.dart';
+import '../widgets/customer_directory_modal.dart';
 
 class Step2InvoiceDetails extends ConsumerStatefulWidget {
   const Step2InvoiceDetails({
@@ -276,23 +277,47 @@ class _Step2InvoiceDetailsState extends ConsumerState<Step2InvoiceDetails> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Icon(Icons.person_pin_rounded, size: 20, color: AppColors.red1),
-                            SizedBox(width: 8),
-                            Text(
-                              'Customer / Party Details (Billed To)',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.black2,
-                              ),
+                            const Row(
+                              children: [
+                                Icon(Icons.person_pin_rounded,
+                                    size: 20, color: AppColors.red1),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Customer Details',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.black2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            TextButton.icon(
+                              onPressed: () async {
+                                final picked =
+                                    await CustomerDirectoryModal.show(context);
+                                if (picked != null) {
+                                  setState(() {
+                                    _customerName.text = picked.name;
+                                    _customerPhone.text = picked.phone;
+                                    _customerAddress.text = picked.address;
+                                    _customerGstin.text = picked.gstin;
+                                  });
+                                  _saveData();
+                                }
+                              },
+                              icon: const Icon(Icons.contacts_outlined, size: 16),
+                              label: const Text('Pick Customer',
+                                  style: TextStyle(fontSize: 12)),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         const Text(
-                          'Enter the client details who will receive this invoice and payment request.',
+                          'Select from directory or type in client information below.',
                           style: TextStyle(fontSize: 12, color: AppColors.grey4),
                         ),
                         const SizedBox(height: 16),
